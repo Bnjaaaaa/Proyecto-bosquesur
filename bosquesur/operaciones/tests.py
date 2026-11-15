@@ -420,6 +420,35 @@ class FlujosCompletosES3Tests(Base):
         pedido.refresh_from_db()
         self.assertEqual(pedido.estado, PedidoVenta.Estado.PREPARACION)
 
+    def test_recepcion_compra_rechaza_exceso_y_registra_diferencia_parcial(self):
+        compra = servicios.solicitar_compra(
+            usuario=self.operador,
+            proveedor=self.proveedor_insumos,
+            patio_destino=self.patio,
+            producto=self.insumo,
+            cantidad=D("10.000"),
+            precio_unitario_clp=2000,
+        )
+        servicios.resolver_aprobacion_compra(usuario=self.gerente, compra_id=compra.pk, aprobar=True)
+
+        with self.assertRaises(servicios.ErrorNegocio):
+            servicios.recepcionar_compra(
+                usuario=self.operador, compra_id=compra.pk, cantidad_recibida=D("12.000")
+            )
+        compra.refresh_from_db()
+        self.assertEqual(compra.estado, OrdenCompra.Estado.APROBADA)
+        self.assertEqual(self.stock(self.insumo), D("0"))
+
+        compra = servicios.recepcionar_compra(
+            usuario=self.operador, compra_id=compra.pk, cantidad_recibida=D("8.250")
+        )
+        self.assertEqual(compra.estado, OrdenCompra.Estado.RECEPCIONADA)
+        self.assertEqual(self.stock(self.insumo), D("8.250"))
+        reg = RegistroAuditoria.objects.filter(
+            accion="RECEPCIONAR_COMPRA", entidad_id=compra.numero
+        ).latest("id")
+        self.assertEqual(reg.datos.get("diferencia"), "1.750")
+
 
 class SeguridadWebTests(Base):
     """Criterio: RBAC restringe vistas administrativas frente a operativas y expone vistas ES3."""

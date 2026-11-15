@@ -624,6 +624,10 @@ def recepcionar_compra(*, usuario, compra_id, cantidad_recibida, observacion="",
         raise ErrorNegocio(f"La orden {compra.numero} está destinada a {compra.patio_destino.nombre}.")
 
     recibida = _a_decimal(cantidad_recibida, "cantidad recibida")
+    if recibida > compra.cantidad:
+        raise ErrorNegocio(
+            f"La cantidad recibida ({recibida}) supera la solicitada ({compra.cantidad})."
+        )
     compra.estado = OrdenCompra.Estado.RECEPCIONADA
     compra.cantidad_recibida = recibida
     compra.recibida_por = usuario
@@ -643,13 +647,17 @@ def recepcionar_compra(*, usuario, compra_id, cantidad_recibida, observacion="",
         compra=compra,
     )
 
+    datos_auditoria = {"cantidad_recibida": recibida, "patio": compra.patio_destino.nombre}
+    if recibida < compra.cantidad:
+        datos_auditoria["diferencia"] = (compra.cantidad - recibida).quantize(Decimal("0.001"))
+
     registrar(
         Accion.RECEPCIONAR_COMPRA,
         f"Recepción de {compra.numero}: +{recibida} {compra.producto.unidad} de {compra.producto.nombre} en {compra.patio_destino}",
         usuario=usuario,
         entidad="OrdenCompra",
         entidad_id=compra.numero,
-        datos={"cantidad_recibida": recibida, "patio": compra.patio_destino.nombre},
+        datos=datos_auditoria,
         request=request,
     )
     return compra
