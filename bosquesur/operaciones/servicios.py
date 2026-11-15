@@ -486,6 +486,11 @@ def mover_paquete(*, usuario, paquete_id, ubicacion_destino, observacion="", req
         raise ErrorNegocio(f"El paquete {paquete.codigo_qr} ya se encuentra en {ubicacion_destino.codigo}.")
 
     ubicacion_origen = paquete.ubicacion
+    if paquete.estado == Paquete.Estado.RESERVADO and ubicacion_origen.patio_id != ubicacion_destino.patio_id:
+        raise ErrorNegocio(
+            f"El paquete {paquete.codigo_qr} está reservado y no puede trasladarse a otro patio "
+            f"(solo dentro de {ubicacion_origen.patio.nombre})."
+        )
     if ubicacion_origen.patio_id != ubicacion_destino.patio_id:
         _ajustar_stock(
             patio=ubicacion_origen.patio,
@@ -736,9 +741,18 @@ def despachar_pedido_venta(*, usuario, pedido_id, patente_camion, conductor, obs
     ):
         raise ErrorNegocio(f"El pedido {pedido.numero} debe despacharse desde {pedido.patio_despacho.nombre}.")
 
-    paquetes = list(pedido.paquetes.select_for_update().select_related("ubicacion", "producto"))
+    paquetes = list(
+        pedido.paquetes.select_for_update().select_related("ubicacion", "ubicacion__patio", "producto")
+    )
     if not paquetes:
         raise ErrorNegocio("El pedido no tiene paquetes asignados.")
+
+    for p in paquetes:
+        if p.ubicacion.patio_id != pedido.patio_despacho_id:
+            raise ErrorNegocio(
+                f"El paquete {p.codigo_qr} se encuentra en {p.ubicacion.patio.nombre} "
+                f"y no en {pedido.patio_despacho.nombre}."
+            )
 
     documento_interno = f"GDC-INT-{pedido.pk:06d}"
     pedido.estado = PedidoVenta.Estado.DESPACHADO

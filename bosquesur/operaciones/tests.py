@@ -364,6 +364,62 @@ class FlujosCompletosES3Tests(Base):
         self.assertEqual(compra.estado, OrdenCompra.Estado.RECEPCIONADA)
         self.assertEqual(self.stock(self.insumo), D("98.500"))
 
+    def test_paquete_reservado_no_puede_moverse_a_otro_patio_pero_si_en_el_mismo(self):
+        guia = self.emitir("20.000")
+        servicios.recepcionar_guia(usuario=self.operador, guia_id=guia.pk, volumen_recibido=D("20.000"))
+        orden = servicios.registrar_produccion(
+            usuario=self.operador,
+            patio=self.patio,
+            producto_entrada=self.rollizo,
+            volumen_entrada=D("10.000"),
+            producto_salida=self.aserrado,
+            volumen_salida=D("5.000"),
+        )
+        paquete = servicios.crear_paquete(
+            usuario=self.operador,
+            orden_produccion=orden,
+            ubicacion=self.ub_bodega,
+            volumen_m3=D("5.000"),
+        )
+        pedido = servicios.crear_pedido_venta(
+            usuario=self.administrativo,
+            cliente=self.cliente,
+            patio_despacho=self.patio,
+            paquetes_ids=[paquete.pk],
+        )
+
+        # No puede trasladarse a otro patio mientras está reservado
+        with self.assertRaises(servicios.ErrorNegocio):
+            servicios.mover_paquete(
+                usuario=self.administrativo,
+                paquete_id=paquete.pk,
+                ubicacion_destino=self.ub_norte,
+            )
+        paquete.refresh_from_db()
+        self.assertEqual(paquete.ubicacion_id, self.ub_bodega.pk)
+
+        # Sí puede moverse dentro del mismo patio (por ejemplo a zona de despacho/cámara)
+        servicios.mover_paquete(
+            usuario=self.operador,
+            paquete_id=paquete.pk,
+            ubicacion_destino=self.ub_camara,
+        )
+        paquete.refresh_from_db()
+        self.assertEqual(paquete.ubicacion_id, self.ub_camara.pk)
+
+        # Defensa adicional en despacho: si un paquete estuviera en otro patio, el despacho falla sin descontar stock
+        Paquete.objects.filter(pk=paquete.pk).update(ubicacion=self.ub_norte)
+        with self.assertRaises(servicios.ErrorNegocio):
+            servicios.despachar_pedido_venta(
+                usuario=self.administrativo,
+                pedido_id=pedido.pk,
+                patente_camion="ABCD12",
+                conductor="Pedro",
+            )
+        self.assertEqual(self.stock(self.aserrado, self.patio), D("5.000"))
+        pedido.refresh_from_db()
+        self.assertEqual(pedido.estado, PedidoVenta.Estado.PREPARACION)
+
 
 class SeguridadWebTests(Base):
     """Criterio: RBAC restringe vistas administrativas frente a operativas y expone vistas ES3."""
