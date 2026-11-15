@@ -3,6 +3,8 @@ from decimal import Decimal
 
 from rest_framework.test import APITestCase
 
+from auditoria.models import RegistroAuditoria
+from auditoria.servicios import verificar_cadena
 from cuentas.models import Usuario
 from maestros.models import Cliente, Faena, Patio, Producto, Proveedor, UbicacionBodega
 from operaciones.models import Inventario, Paquete
@@ -217,3 +219,17 @@ class ApiJwtTests(APITestCase):
         self.assertIn("kpis", respuesta.data)
         self.assertIn("paquetes_activos", respuesta.data["kpis"])
         self.assertEqual(self.client.get("/api/auditoria/").status_code, 200)
+
+    def test_api_registra_acceso_denegado_y_mantiene_cadena_integra(self):
+        self.login("faena")
+        antes = RegistroAuditoria.objects.filter(accion="ACCESO_DENEGADO").count()
+        respuesta = self.client.get("/api/auditoria/")
+        self.assertEqual(respuesta.status_code, 403)
+        despues = RegistroAuditoria.objects.filter(
+            accion="ACCESO_DENEGADO", usuario__username="faena"
+        ).count()
+        self.assertGreater(despues, 0)
+        self.assertGreater(RegistroAuditoria.objects.filter(accion="ACCESO_DENEGADO").count(), antes)
+        integra, total, _ = verificar_cadena()
+        self.assertTrue(integra)
+        self.assertGreaterEqual(total, 1)
