@@ -328,7 +328,12 @@ def crear_paquete(
     if int(piezas) <= 0:
         raise ErrorNegocio("La cantidad de piezas debe ser mayor que cero.")
 
-    empaquetado_previo = orden.paquetes.aggregate(total=Sum("volumen_m3"))["total"] or Decimal("0")
+    vol_actual = orden.paquetes.aggregate(total=Sum("volumen_m3"))["total"] or Decimal("0")
+    merma_previa = (
+        HistorialPaquete.objects.filter(paquete__orden_produccion=orden).aggregate(total=Sum("merma_m3"))["total"]
+        or Decimal("0")
+    )
+    empaquetado_previo = vol_actual + merma_previa
     if empaquetado_previo + vol > orden.volumen_salida:
         disponible = orden.volumen_salida - empaquetado_previo
         raise ErrorNegocio(

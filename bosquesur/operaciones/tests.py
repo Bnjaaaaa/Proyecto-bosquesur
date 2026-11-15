@@ -449,6 +449,37 @@ class FlujosCompletosES3Tests(Base):
         ).latest("id")
         self.assertEqual(reg.datos.get("diferencia"), "1.750")
 
+    def test_merma_de_proceso_no_libera_volumen_para_reempaquetar(self):
+        guia = self.emitir("25.000")
+        servicios.recepcionar_guia(usuario=self.operador, guia_id=guia.pk, volumen_recibido=D("25.000"))
+        orden = servicios.registrar_produccion(
+            usuario=self.operador,
+            patio=self.patio,
+            producto_entrada=self.rollizo,
+            volumen_entrada=D("20.000"),
+            producto_salida=self.aserrado,
+            volumen_salida=D("10.000"),
+        )
+        paquete = servicios.crear_paquete(
+            usuario=self.operador,
+            orden_produccion=orden,
+            ubicacion=self.ub_bodega,
+            volumen_m3=D("10.000"),
+        )
+        servicios.aplicar_proceso_paquete(
+            usuario=self.operador,
+            paquete_id=paquete.pk,
+            proceso=Paquete.Proceso.SECADO,
+            merma_m3=D("1.000"),
+        )
+        with self.assertRaises(servicios.ErrorNegocio):
+            servicios.crear_paquete(
+                usuario=self.operador,
+                orden_produccion=orden,
+                ubicacion=self.ub_bodega,
+                volumen_m3=D("1.000"),
+            )
+
 
 class SeguridadWebTests(Base):
     """Criterio: RBAC restringe vistas administrativas frente a operativas y expone vistas ES3."""
