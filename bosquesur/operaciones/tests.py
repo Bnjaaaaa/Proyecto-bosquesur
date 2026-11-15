@@ -557,3 +557,60 @@ class SeguridadWebTests(Base):
         self.assertEqual(r_inv.status_code, 200)
         self.assertEqual(r_inv.context["filtros"]["desde_str"], "2026-01-01")
         self.assertEqual(r_inv.context["filtros"]["hasta_str"], "2026-12-31")
+
+    def test_operador_patio_no_accede_ni_opera_recursos_de_otro_patio(self):
+        # Recursos en otro_patio (Patio Norte)
+        guia_norte = self.emitir("20.000", patio=self.otro_patio)
+        servicios.recepcionar_guia(usuario=self.administrativo, guia_id=guia_norte.pk, volumen_recibido=D("20.000"))
+        orden_norte = servicios.registrar_produccion(
+            usuario=self.administrativo,
+            patio=self.otro_patio,
+            producto_entrada=self.rollizo,
+            volumen_entrada=D("10.000"),
+            producto_salida=self.aserrado,
+            volumen_salida=D("5.000"),
+        )
+        paquete_norte = servicios.crear_paquete(
+            usuario=self.administrativo,
+            orden_produccion=orden_norte,
+            ubicacion=self.ub_norte,
+            volumen_m3=D("5.000"),
+        )
+
+        # Servicios rechazan operar paquete de otro patio (cuando el paquete está disponible)
+        with self.assertRaisesMessage(servicios.ErrorNegocio, "patio"):
+            servicios.aplicar_proceso_paquete(
+                usuario=self.operador,
+                paquete_id=paquete_norte.pk,
+                proceso=Paquete.Proceso.SECADO,
+            )
+        with self.assertRaisesMessage(servicios.ErrorNegocio, "patio"):
+            servicios.mover_paquete(
+                usuario=self.operador,
+                paquete_id=paquete_norte.pk,
+                ubicacion_destino=self.ub_bodega,
+            )
+
+        compra_norte = servicios.solicitar_compra(
+            usuario=self.administrativo,
+            proveedor=self.proveedor_insumos,
+            patio_destino=self.otro_patio,
+            producto=self.insumo,
+            cantidad=D("10.000"),
+            precio_unitario_clp=1000,
+        )
+        venta_norte = servicios.crear_pedido_venta(
+            usuario=self.administrativo,
+            cliente=self.cliente,
+            patio_despacho=self.otro_patio,
+            paquetes_ids=[paquete_norte.pk],
+        )
+
+        # Vistas web devuelven 404 para detalles y documentos de otro patio
+        self.client.force_login(self.operador)
+        self.assertEqual(self.client.get(reverse("paquete_detalle", args=[paquete_norte.pk])).status_code, 404)
+        self.assertEqual(self.client.get(reverse("compra_detalle", args=[compra_norte.pk])).status_code, 404)
+        self.assertEqual(self.client.get(reverse("venta_detalle", args=[venta_norte.pk])).status_code, 404)
+        self.assertEqual(self.client.get(reverse("venta_documento", args=[venta_norte.pk])).status_code, 404)
+        resp_qr = self.client.get(reverse("paquete_buscar_qr") + f"?qr={paquete_norte.codigo_qr}")
+        self.assertRedirects(resp_qr, reverse("paquetes_lista"))

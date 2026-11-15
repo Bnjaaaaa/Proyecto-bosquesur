@@ -304,12 +304,20 @@ def paquetes_lista(request):
     )
 
 
+def _filtrar_por_patio(queryset, usuario, campo="patio_id"):
+    if usuario.rol == Usuario.Rol.PATIO and usuario.patio_id and not usuario.is_superuser:
+        return queryset.filter(**{campo: usuario.patio_id})
+    return queryset
+
+
 @permiso_requerido("ver_paquetes")
 def paquete_buscar_qr(request, codigo_qr=None):
     codigo = (codigo_qr or request.GET.get("qr", "")).strip().upper()
     if not codigo:
         return redirect("paquetes_lista")
-    paquete = Paquete.objects.filter(codigo_qr__iexact=codigo).first()
+    paquete = _filtrar_por_patio(Paquete.objects.all(), request.user, "ubicacion__patio_id").filter(
+        codigo_qr__iexact=codigo
+    ).first()
     if paquete is None:
         messages.warning(request, f"No se encontró ningún paquete con el código QR '{codigo}'.")
         return redirect("paquetes_lista")
@@ -345,14 +353,18 @@ def paquete_nuevo(request):
 @permiso_requerido("ver_paquetes")
 def paquete_detalle(request, pk):
     paquete = get_object_or_404(
-        Paquete.objects.select_related(
-            "orden_produccion",
-            "orden_produccion__patio",
-            "orden_produccion__guia_origen",
-            "producto",
-            "ubicacion",
-            "ubicacion__patio",
-            "creado_por",
+        _filtrar_por_patio(
+            Paquete.objects.select_related(
+                "orden_produccion",
+                "orden_produccion__patio",
+                "orden_produccion__guia_origen",
+                "producto",
+                "ubicacion",
+                "ubicacion__patio",
+                "creado_por",
+            ),
+            request.user,
+            "ubicacion__patio_id",
         ),
         pk=pk,
     )
@@ -477,8 +489,12 @@ def compra_nueva(request):
 @permiso_requerido("ver_compras")
 def compra_detalle(request, pk):
     compra = get_object_or_404(
-        OrdenCompra.objects.select_related(
-            "proveedor", "patio_destino", "producto", "solicitada_por", "aprobada_por", "recibida_por"
+        _filtrar_por_patio(
+            OrdenCompra.objects.select_related(
+                "proveedor", "patio_destino", "producto", "solicitada_por", "aprobada_por", "recibida_por"
+            ),
+            request.user,
+            "patio_destino_id",
         ),
         pk=pk,
     )
@@ -614,7 +630,11 @@ def venta_nueva(request):
 @permiso_requerido("ver_ventas")
 def venta_detalle(request, pk):
     pedido = get_object_or_404(
-        PedidoVenta.objects.select_related("cliente", "patio_despacho", "creado_por", "despachado_por"),
+        _filtrar_por_patio(
+            PedidoVenta.objects.select_related("cliente", "patio_despacho", "creado_por", "despachado_por"),
+            request.user,
+            "patio_despacho_id",
+        ),
         pk=pk,
     )
     paquetes = pedido.paquetes.select_related("producto", "ubicacion")
@@ -667,7 +687,11 @@ def venta_despachar(request, pk):
 @permiso_requerido("ver_ventas")
 def venta_documento(request, pk):
     pedido = get_object_or_404(
-        PedidoVenta.objects.select_related("cliente", "patio_despacho", "creado_por", "despachado_por"),
+        _filtrar_por_patio(
+            PedidoVenta.objects.select_related("cliente", "patio_despacho", "creado_por", "despachado_por"),
+            request.user,
+            "patio_despacho_id",
+        ),
         pk=pk,
     )
     paquetes = pedido.paquetes.select_related("producto", "ubicacion")

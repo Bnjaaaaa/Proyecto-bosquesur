@@ -370,6 +370,16 @@ def crear_paquete(
     return paquete
 
 
+def _validar_patio_operador(usuario, patio_id, mensaje):
+    if (
+        usuario.rol == Usuario.Rol.PATIO
+        and usuario.patio_id
+        and usuario.patio_id != patio_id
+        and not usuario.is_superuser
+    ):
+        raise ErrorNegocio(mensaje)
+
+
 @transaction.atomic
 def aplicar_proceso_paquete(
     *,
@@ -388,6 +398,12 @@ def aplicar_proceso_paquete(
         ).get(pk=paquete_id)
     except Paquete.DoesNotExist as exc:
         raise ErrorNegocio("El paquete indicado no existe.") from exc
+
+    _validar_patio_operador(
+        usuario,
+        paquete.ubicacion.patio_id,
+        "Solo puede procesar paquetes ubicados en su patio.",
+    )
 
     if paquete.estado in (Paquete.Estado.RESERVADO, Paquete.Estado.DESPACHADO):
         raise ErrorNegocio(f"El paquete {paquete.codigo_qr} está {paquete.get_estado_display()} y no puede procesarse.")
@@ -480,6 +496,11 @@ def mover_paquete(*, usuario, paquete_id, ubicacion_destino, observacion="", req
     except Paquete.DoesNotExist as exc:
         raise ErrorNegocio("El paquete indicado no existe.") from exc
 
+    _validar_patio_operador(
+        usuario,
+        paquete.ubicacion.patio_id,
+        "Solo puede mover paquetes ubicados en su patio.",
+    )
     if paquete.estado == Paquete.Estado.DESPACHADO:
         raise ErrorNegocio(f"El paquete {paquete.codigo_qr} ya fue despachado a cliente.")
     if paquete.ubicacion_id == ubicacion_destino.pk:
