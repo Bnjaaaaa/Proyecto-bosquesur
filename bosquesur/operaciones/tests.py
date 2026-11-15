@@ -543,3 +543,17 @@ class SeguridadWebTests(Base):
         self.client.force_login(self.encargado)
         respuesta = self.client.get(reverse("guias_lista"))
         self.assertEqual(list(respuesta.context["pagina"]), [propia])
+
+    def test_reportes_ignora_fechas_invalidas_y_rango_invertido(self):
+        self.client.force_login(self.gerente)
+        r_html = self.client.get(reverse("reportes") + "?desde=2026-99-99&hasta=invalida")
+        self.assertEqual(r_html.status_code, 200)
+        self.assertContains(r_html, "Fecha inválida")
+
+        r_csv = self.client.get(reverse("reportes_csv") + "?desde=2026-99-99")
+        self.assertEqual(r_csv.status_code, 200)
+
+        r_inv = self.client.get(reverse("reportes") + "?desde=2026-12-31&hasta=2026-01-01")
+        self.assertEqual(r_inv.status_code, 200)
+        self.assertEqual(r_inv.context["filtros"]["desde_str"], "2026-01-01")
+        self.assertEqual(r_inv.context["filtros"]["hasta_str"], "2026-12-31")

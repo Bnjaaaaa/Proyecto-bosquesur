@@ -679,13 +679,31 @@ def venta_documento(request, pk):
 
 
 # ------------------------------------------------------------------ Reportes
+def _parsear_fecha_opcional(valor, request):
+    if not valor:
+        return None
+    try:
+        return date.fromisoformat(valor)
+    except ValueError:
+        messages.warning(request, "Fecha inválida, se ignoró el filtro.")
+        return None
+
+
 def _parsear_filtros_reporte(request):
     desde_str = request.GET.get("desde", "").strip()
     hasta_str = request.GET.get("hasta", "").strip()
     faena_id = request.GET.get("faena", "").strip()
     patio_id = request.GET.get("patio", "").strip()
-    fecha_desde = date.fromisoformat(desde_str) if desde_str else None
-    fecha_hasta = date.fromisoformat(hasta_str) if hasta_str else None
+    fecha_desde = _parsear_fecha_opcional(desde_str, request)
+    fecha_hasta = _parsear_fecha_opcional(hasta_str, request)
+    if fecha_desde is None:
+        desde_str = ""
+    if fecha_hasta is None:
+        hasta_str = ""
+    if fecha_desde and fecha_hasta and fecha_desde > fecha_hasta:
+        fecha_desde, fecha_hasta = fecha_hasta, fecha_desde
+        desde_str, hasta_str = fecha_desde.isoformat(), fecha_hasta.isoformat()
+        messages.info(request, "La fecha 'desde' era posterior a 'hasta'; se ajustó el rango.")
     return {
         "desde_str": desde_str,
         "hasta_str": hasta_str,
