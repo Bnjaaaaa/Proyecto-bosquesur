@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
 class ApiException implements Exception {
@@ -20,6 +21,20 @@ class BosqueSurApiService {
   String? _accessToken;
   String? _refreshToken;
   Map<String, dynamic>? usuarioActual;
+
+  http.Client _client = http.Client();
+  Future<void>? _refreshEnCurso;
+
+  @visibleForTesting
+  void setHttpClient(http.Client client) {
+    _client = client;
+  }
+
+  @visibleForTesting
+  void setTokensForTest({String? access, String? refresh}) {
+    _accessToken = access;
+    _refreshToken = refresh;
+  }
 
   bool get estaAutenticado => _accessToken != null && _accessToken!.isNotEmpty;
 
@@ -57,6 +72,70 @@ class BosqueSurApiService {
     return [];
   }
 
+  Future<void> _refrescarToken() async {
+    if (_refreshEnCurso != null) {
+      return _refreshEnCurso!;
+    }
+    final futuro = _ejecutarRefresh();
+    _refreshEnCurso = futuro;
+    try {
+      await futuro;
+    } finally {
+      _refreshEnCurso = null;
+    }
+  }
+
+  Future<void> _ejecutarRefresh() async {
+    final refresh = _refreshToken;
+    if (refresh == null || refresh.isEmpty) {
+      logout();
+      throw ApiException('Sesión expirada', 401);
+    }
+    final resp = await _client.post(
+      Uri.parse('$baseUrl/token/refresh/'),
+      headers: _headers(conAuth: false),
+      body: jsonEncode({'refresh': refresh}),
+    );
+    if (resp.statusCode >= 200 && resp.statusCode < 300) {
+      final decoded = jsonDecode(utf8.decode(resp.bodyBytes));
+      if (decoded is Map<String, dynamic> && decoded['access'] is String) {
+        _accessToken = decoded['access'] as String;
+        if (decoded['refresh'] is String && (decoded['refresh'] as String).isNotEmpty) {
+          _refreshToken = decoded['refresh'] as String;
+        }
+        return;
+      }
+    }
+    logout();
+    throw ApiException('Sesión expirada', 401);
+  }
+
+  Future<dynamic> _request(
+    String method,
+    String path, {
+    Map<String, dynamic>? body,
+  }) async {
+    Future<http.Response> enviar() {
+      final uri = Uri.parse('$baseUrl$path');
+      final headers = _headers();
+      if (method == 'POST') {
+        return _client.post(
+          uri,
+          headers: headers,
+          body: body != null ? jsonEncode(body) : null,
+        );
+      }
+      return _client.get(uri, headers: headers);
+    }
+
+    var resp = await enviar();
+    if (resp.statusCode == 401) {
+      await _refrescarToken();
+      resp = await enviar();
+    }
+    return _parseResponse(resp);
+  }
+
   Future<Map<String, dynamic>> login({
     required String username,
     required String password,
@@ -65,7 +144,7 @@ class BosqueSurApiService {
     if (customBaseUrl != null && customBaseUrl.trim().isNotEmpty) {
       baseUrl = customBaseUrl.trim().replaceAll(RegExp(r'/+$'), '');
     }
-    final resp = await http.post(
+    final resp = await _client.post(
       Uri.parse('$baseUrl/token/'),
       headers: _headers(conAuth: false),
       body: jsonEncode({'username': username.trim(), 'password': password}),
@@ -86,28 +165,23 @@ class BosqueSurApiService {
   String? get refreshToken => _refreshToken;
 
   Future<List<Map<String, dynamic>>> getFaenas() async {
-    final resp = await http.get(Uri.parse('$baseUrl/faenas/'), headers: _headers());
-    return _extractList(_parseResponse(resp));
+    return _extractList(await _request('GET', '/faenas/'));
   }
 
   Future<List<Map<String, dynamic>>> getPatios() async {
-    final resp = await http.get(Uri.parse('$baseUrl/patios/'), headers: _headers());
-    return _extractList(_parseResponse(resp));
+    return _extractList(await _request('GET', '/patios/'));
   }
 
   Future<List<Map<String, dynamic>>> getProductos() async {
-    final resp = await http.get(Uri.parse('$baseUrl/productos/'), headers: _headers());
-    return _extractList(_parseResponse(resp));
+    return _extractList(await _request('GET', '/productos/'));
   }
 
   Future<List<Map<String, dynamic>>> getUbicaciones() async {
-    final resp = await http.get(Uri.parse('$baseUrl/ubicaciones/'), headers: _headers());
-    return _extractList(_parseResponse(resp));
+    return _extractList(await _request('GET', '/ubicaciones/'));
   }
 
   Future<List<Map<String, dynamic>>> getLotesCosecha() async {
-    final resp = await http.get(Uri.parse('$baseUrl/lotes-cosecha/'), headers: _headers());
-    return _extractList(_parseResponse(resp));
+    return _extractList(await _request('GET', '/lotes-cosecha/'));
   }
 
   Future<Map<String, dynamic>> registrarLoteCosecha({
@@ -117,24 +191,22 @@ class BosqueSurApiService {
     required String cuadrilla,
     String observacion = '',
   }) async {
-    final resp = await http.post(
-      Uri.parse('$baseUrl/lotes-cosecha/'),
-      headers: _headers(),
-      body: jsonEncode({
+    return await _request(
+      'POST',
+      '/lotes-cosecha/',
+      body: {
         'faena': faenaId,
         'producto': productoId,
         'volumen_cosechado': volumenCosechado,
         'cuadrilla': cuadrilla,
         'observacion': observacion,
-      }),
-    );
-    return _parseResponse(resp) as Map<String, dynamic>;
+      },
+    ) as Map<String, dynamic>;
   }
 
   Future<List<Map<String, dynamic>>> getGuias({String? estado}) async {
     final suffix = estado != null ? '?estado=$estado' : '';
-    final resp = await http.get(Uri.parse('$baseUrl/guias/$suffix'), headers: _headers());
-    return _extractList(_parseResponse(resp));
+    return _extractList(await _request('GET', '/guias/$suffix'));
   }
 
   Future<Map<String, dynamic>> emitirGuia({
@@ -157,12 +229,7 @@ class BosqueSurApiService {
     if (loteCosechaId != null) {
       body['lote_cosecha'] = loteCosechaId;
     }
-    final resp = await http.post(
-      Uri.parse('$baseUrl/guias/'),
-      headers: _headers(),
-      body: jsonEncode(body),
-    );
-    return _parseResponse(resp) as Map<String, dynamic>;
+    return await _request('POST', '/guias/', body: body) as Map<String, dynamic>;
   }
 
   Future<Map<String, dynamic>> recepcionarGuia({
@@ -170,31 +237,25 @@ class BosqueSurApiService {
     required String volumenRecibido,
     String observacion = '',
   }) async {
-    final resp = await http.post(
-      Uri.parse('$baseUrl/guias/$guiaId/recepcionar/'),
-      headers: _headers(),
-      body: jsonEncode({
+    return await _request(
+      'POST',
+      '/guias/$guiaId/recepcionar/',
+      body: {
         'volumen_recibido': volumenRecibido,
         'observacion': observacion,
-      }),
-    );
-    return _parseResponse(resp) as Map<String, dynamic>;
+      },
+    ) as Map<String, dynamic>;
   }
 
   Future<List<Map<String, dynamic>>> getPaquetes({String? codigoQr}) async {
     final q = (codigoQr != null && codigoQr.trim().isNotEmpty)
         ? '?codigo_qr=${Uri.encodeQueryComponent(codigoQr.trim())}'
         : '';
-    final resp = await http.get(Uri.parse('$baseUrl/paquetes/$q'), headers: _headers());
-    return _extractList(_parseResponse(resp));
+    return _extractList(await _request('GET', '/paquetes/$q'));
   }
 
   Future<Map<String, dynamic>> getTrazabilidadPaquete(int paqueteId) async {
-    final resp = await http.get(
-      Uri.parse('$baseUrl/paquetes/$paqueteId/trazabilidad/'),
-      headers: _headers(),
-    );
-    return _parseResponse(resp) as Map<String, dynamic>;
+    return await _request('GET', '/paquetes/$paqueteId/trazabilidad/') as Map<String, dynamic>;
   }
 
   Future<Map<String, dynamic>> procesarPaquete({
@@ -212,12 +273,11 @@ class BosqueSurApiService {
     if (ubicacionDestinoId != null) {
       body['ubicacion_destino'] = ubicacionDestinoId;
     }
-    final resp = await http.post(
-      Uri.parse('$baseUrl/paquetes/$paqueteId/procesar/'),
-      headers: _headers(),
-      body: jsonEncode(body),
-    );
-    return _parseResponse(resp) as Map<String, dynamic>;
+    return await _request(
+      'POST',
+      '/paquetes/$paqueteId/procesar/',
+      body: body,
+    ) as Map<String, dynamic>;
   }
 
   Future<Map<String, dynamic>> moverPaquete({
@@ -225,14 +285,13 @@ class BosqueSurApiService {
     required int ubicacionDestinoId,
     String observacion = '',
   }) async {
-    final resp = await http.post(
-      Uri.parse('$baseUrl/paquetes/$paqueteId/mover/'),
-      headers: _headers(),
-      body: jsonEncode({
+    return await _request(
+      'POST',
+      '/paquetes/$paqueteId/mover/',
+      body: {
         'ubicacion_destino': ubicacionDestinoId,
         'observacion': observacion,
-      }),
-    );
-    return _parseResponse(resp) as Map<String, dynamic>;
+      },
+    ) as Map<String, dynamic>;
   }
 }
