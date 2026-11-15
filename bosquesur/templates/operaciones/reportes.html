@@ -1,0 +1,196 @@
+{% extends "base.html" %}
+{% block titulo %}Reportes operacionales y gerenciales{% endblock %}
+{% block contenido %}
+<div class="d-flex flex-wrap justify-content-between align-items-end gap-3 mb-4">
+  <div>
+    <h1 class="titulo-pagina">Reportes operacionales y gerenciales</h1>
+    <p class="subtitulo">Rendimiento y mermas por predio/proveedor, ocupación por ubicación en bodega y consolidado comercial.</p>
+  </div>
+  <div class="d-flex flex-wrap gap-2 d-print-none">
+    <a class="btn btn-primary" href="{% url 'reportes_csv' %}?desde={{ filtros.desde_str }}&hasta={{ filtros.hasta_str }}&faena={{ filtros.faena_id|default:'' }}&patio={{ filtros.patio_id|default:'' }}">
+      Exportar CSV (Excel)
+    </a>
+    <button class="btn btn-outline-primary" onclick="window.print()">Imprimir / PDF</button>
+  </div>
+</div>
+
+<form class="card mb-4 d-print-none" method="get">
+  <div class="card-body row g-2 align-items-end">
+    <div class="col-6 col-md-2">
+      <label class="form-label small fw-semibold" for="f_desde">Desde</label>
+      <input class="form-control form-control-sm" id="f_desde" type="date" name="desde" value="{{ filtros.desde_str }}">
+    </div>
+    <div class="col-6 col-md-2">
+      <label class="form-label small fw-semibold" for="f_hasta">Hasta</label>
+      <input class="form-control form-control-sm" id="f_hasta" type="date" name="hasta" value="{{ filtros.hasta_str }}">
+    </div>
+    <div class="col-12 col-md-3">
+      <label class="form-label small fw-semibold" for="f_faena">Faena / Predio</label>
+      <select class="form-select form-select-sm" id="f_faena" name="faena">
+        <option value="">Todas las faenas</option>
+        {% for f in faenas %}
+          <option value="{{ f.pk }}" {% if f.pk == filtros.faena_id %}selected{% endif %}>{{ f.nombre }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-12 col-md-3">
+      <label class="form-label small fw-semibold" for="f_patio">Patio / Bodega</label>
+      <select class="form-select form-select-sm" id="f_patio" name="patio">
+        <option value="">Todos los patios</option>
+        {% for p in patios %}
+          <option value="{{ p.pk }}" {% if p.pk == filtros.patio_id %}selected{% endif %}>{{ p.nombre }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-12 col-md-2 d-flex gap-1">
+      <button class="btn btn-sm btn-primary flex-grow-1">Aplicar</button>
+      <a class="btn btn-sm btn-outline-secondary" href="{% url 'reportes' %}">Limpiar</a>
+    </div>
+  </div>
+</form>
+
+<div class="card mb-4">
+  <div class="card-header">1. Rendimiento logístico y mermas por faena forestal y proveedor</div>
+  <div class="table-responsive">
+    <table class="table table-sm align-middle mb-0">
+      <thead>
+        <tr>
+          <th>Faena / Predio</th>
+          <th>Proveedor / Contrato</th>
+          <th class="num">Guías</th>
+          <th class="num">Enviado (m³)</th>
+          <th class="num">Recibido (m³)</th>
+          <th class="num">Merma (m³)</th>
+          <th class="num">Merma %</th>
+          <th class="num">En revisión</th>
+        </tr>
+      </thead>
+      <tbody>
+      {% for r in datos.reporte_faenas %}
+        <tr>
+          <td><strong>{{ r.faena }}</strong><div class="small text-secondary">{{ r.codigo_predio }}</div></td>
+          <td>{{ r.proveedor }}<div class="small text-secondary">{{ r.contrato|default:"Operación directa" }}</div></td>
+          <td class="num">{{ r.guias }}</td>
+          <td class="num">{{ r.enviado_m3|floatformat:"3g" }}</td>
+          <td class="num">{{ r.recibido_m3|floatformat:"3g" }}</td>
+          <td class="num">{{ r.merma_m3|floatformat:"3g" }}</td>
+          <td class="num fw-semibold">{{ r.merma_pct|floatformat:2 }}%</td>
+          <td class="num">{% if r.en_revision %}<span class="badge badge-revision">{{ r.en_revision }}</span>{% else %}0{% endif %}</td>
+        </tr>
+      {% empty %}
+        <tr><td colspan="8" class="text-center text-secondary py-3">No existen recepciones para los filtros seleccionados.</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="card mb-4">
+  <div class="card-header">2. Ocupación de paquetes QR por ubicación física y bodega</div>
+  <div class="table-responsive">
+    <table class="table table-sm align-middle mb-0">
+      <thead>
+        <tr>
+          <th>Código</th>
+          <th>Ubicación</th>
+          <th>Tipo</th>
+          <th>Patio</th>
+          <th class="num">Paquetes activos</th>
+          <th class="num">Con proceso posterior</th>
+          <th class="num">Volumen almacenado (m³)</th>
+        </tr>
+      </thead>
+      <tbody>
+      {% for u in datos.reporte_ubicaciones %}
+        <tr>
+          <td class="fw-semibold hash">{{ u.codigo }}</td>
+          <td>{{ u.nombre }}</td>
+          <td>{{ u.tipo }}</td>
+          <td>{{ u.patio }}</td>
+          <td class="num">{{ u.paquetes }}</td>
+          <td class="num">{{ u.procesados }}</td>
+          <td class="num fw-semibold">{{ u.volumen_m3|floatformat:"3g" }}</td>
+        </tr>
+      {% empty %}
+        <tr><td colspan="7" class="text-center text-secondary py-3">Sin ubicaciones configuradas.</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header">3. Consolidado comercial (Ventas despachadas vs Compras externas recepcionadas)</div>
+  <div class="card-body">
+    <div class="row g-3 mb-4">
+      <div class="col-6 col-md-3">
+        <div class="border rounded p-3">
+          <div class="small text-secondary text-uppercase">Ventas despachadas</div>
+          <div class="fs-4 fw-bold">{{ datos.resumen_comercial.ventas_cantidad }}</div>
+          <div class="small text-secondary">{{ datos.resumen_comercial.ventas_volumen_m3|floatformat:"3g" }} m³</div>
+        </div>
+      </div>
+      <div class="col-6 col-md-3">
+        <div class="border rounded p-3">
+          <div class="small text-secondary text-uppercase">Ingresos comerciales</div>
+          <div class="fs-4 fw-bold">${{ datos.resumen_comercial.ventas_monto_clp }}</div>
+          <div class="small text-secondary">CLP neto referencial</div>
+        </div>
+      </div>
+      <div class="col-6 col-md-3">
+        <div class="border rounded p-3">
+          <div class="small text-secondary text-uppercase">Compras recepcionadas</div>
+          <div class="fs-4 fw-bold">{{ datos.resumen_comercial.compras_cantidad }}</div>
+          <div class="small text-secondary">Órdenes cerradas</div>
+        </div>
+      </div>
+      <div class="col-6 col-md-3">
+        <div class="border rounded p-3">
+          <div class="small text-secondary text-uppercase">Egresos por compras</div>
+          <div class="fs-4 fw-bold">${{ datos.resumen_comercial.compras_monto_clp }}</div>
+          <div class="small text-secondary">CLP aprobado y recibido</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="row g-4">
+      <div class="col-12 col-lg-6">
+        <h3 class="h6 fw-bold">Últimas ventas despachadas</h3>
+        <table class="table table-sm mb-0">
+          <thead><tr><th>Pedido</th><th>Cliente</th><th>Doc. Interno</th><th class="num">Monto CLP</th></tr></thead>
+          <tbody>
+          {% for v in datos.ventas_lista %}
+            <tr>
+              <td><a href="{% url 'venta_detalle' v.pk %}">{{ v.numero }}</a></td>
+              <td>{{ v.cliente.razon_social }}</td>
+              <td class="hash">{{ v.documento_interno }}</td>
+              <td class="num">${{ v.monto_neto_clp }}</td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="4" class="text-secondary">Sin despachos en el rango.</td></tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      <div class="col-12 col-lg-6">
+        <h3 class="h6 fw-bold">Últimas compras recepcionadas</h3>
+        <table class="table table-sm mb-0">
+          <thead><tr><th>Orden</th><th>Proveedor</th><th>Producto</th><th class="num">Total CLP</th></tr></thead>
+          <tbody>
+          {% for c in datos.compras_lista %}
+            <tr>
+              <td><a href="{% url 'compra_detalle' c.pk %}">{{ c.numero }}</a></td>
+              <td>{{ c.proveedor.razon_social }}</td>
+              <td>{{ c.producto.nombre }}</td>
+              <td class="num">${{ c.monto_total_clp }}</td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="4" class="text-secondary">Sin compras recepcionadas en el rango.</td></tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

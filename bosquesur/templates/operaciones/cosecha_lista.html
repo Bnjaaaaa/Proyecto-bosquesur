@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block titulo %}Bosque, Predios y Cosecha{% endblock %}
+{% block contenido %}
+<div class="d-flex flex-wrap justify-content-between align-items-end gap-3 mb-4">
+  <div>
+    <h1 class="titulo-pagina">Bosque, predios y cosecha</h1>
+    <p class="subtitulo">Origen forestal, proveedores/propietarios, contratos vigentes y lotes de cosecha en terreno.</p>
+  </div>
+  {% if puede_registrar %}<a class="btn btn-primary btn-lg-movil" href="{% url 'cosecha_nueva' %}">Registrar lote de cosecha</a>{% endif %}
+</div>
+
+<div class="card mb-4">
+  <div class="card-header">Predios forestales y contratos de abastecimiento</div>
+  <div class="table-responsive">
+    <table class="table align-middle mb-0">
+      <thead><tr><th>Predio / Faena</th><th>Código / Rol</th><th>Proveedor / Propietario</th><th>Contrato</th><th>Especie</th><th>Ubicación</th></tr></thead>
+      <tbody>
+      {% for f in faenas %}
+        <tr>
+          <td class="fw-semibold">{{ f.nombre }}</td>
+          <td><span class="badge bg-light text-dark border">{{ f.codigo_predio }}</span></td>
+          <td>{% if f.proveedor %}{{ f.proveedor.razon_social }}<div class="small text-secondary">{{ f.proveedor.rut }}</div>{% else %}Predio Propio BosqueSur{% endif %}</td>
+          <td>{{ f.contrato_vigente }}</td>
+          <td>{{ f.especie }}</td>
+          <td>{{ f.ubicacion|default:"—" }}</td>
+        </tr>
+      {% empty %}
+        <tr><td colspan="6" class="text-center text-secondary py-3">Sin predios registrados.</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header">Lotes de cosecha registrados en terreno</div>
+  <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0">
+      <thead><tr><th>Lote</th><th>Fecha</th><th>Predio / Faena</th><th>Producto</th><th>Cuadrilla</th><th class="num">Volumen (m³)</th><th>Registrado por</th></tr></thead>
+      <tbody>
+      {% for l in pagina %}
+        <tr>
+          <td class="fw-semibold">{{ l.codigo }}</td>
+          <td class="text-nowrap">{{ l.fecha_cosecha|date:"d-m-Y H:i" }}</td>
+          <td>{{ l.faena.nombre }}</td>
+          <td>{{ l.producto.nombre }}</td>
+          <td>{{ l.cuadrilla }}</td>
+          <td class="num fw-semibold">{{ l.volumen_cosechado|floatformat:"3g" }}</td>
+          <td>{{ l.registrado_por.nombre_visible }}</td>
+        </tr>
+      {% empty %}
+        <tr><td colspan="7" class="text-center text-secondary py-4">Aún no hay lotes de cosecha registrados.</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% include "includes/paginacion.html" %}
+{% endblock %}

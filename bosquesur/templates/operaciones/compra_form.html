@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block titulo %}Nueva orden de compra{% endblock %}
+{% block contenido %}
+<a class="small" href="{% url 'compras_lista' %}">← Volver a compras externas</a>
+<h1 class="titulo-pagina mt-2">Solicitar compra externa</h1>
+<p class="subtitulo">Registra una necesidad de abastecimiento o insumo. Queda sujeta a aprobación de Gerencia antes de ingresar a inventario.</p>
+
+<div class="row justify-content-center mt-3">
+  <div class="col-12 col-lg-7">
+    <div class="card">
+      <div class="card-body p-4">
+        <form method="post">
+          {% csrf_token %}
+          {% include "includes/form_campos.html" %}
+          <div class="d-flex flex-wrap gap-2 mt-4">
+            <button class="btn btn-primary btn-lg-movil">Enviar solicitud de compra</button>
+            <a class="btn btn-outline-secondary" href="{% url 'compras_lista' %}">Cancelar</a>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

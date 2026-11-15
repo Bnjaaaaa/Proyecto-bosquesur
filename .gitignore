@@ -1,0 +1,17 @@
+# Python / Django
+venv/
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+staticfiles/
+.env
+db.sqlite3
+
+# Flutter / Dart / IDEs
+bosquesur_mobile/.dart_tool/
+bosquesur_mobile/build/
+bosquesur_mobile/.flutter-plugins*
+*.iml
+.idea/
+.vscode/

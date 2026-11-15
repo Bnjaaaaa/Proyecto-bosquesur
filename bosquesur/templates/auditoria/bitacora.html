@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block titulo %}Bitácora de auditoría{% endblock %}
+{% block contenido %}
+<div class="d-flex flex-wrap justify-content-between align-items-end gap-3 mb-3">
+  <div>
+    <h1 class="titulo-pagina">Bitácora de auditoría</h1>
+    <p class="subtitulo">Registro inmutable de accesos y operaciones. Cada fila guarda el hash SHA-256 de la anterior.</p>
+  </div>
+  {% if integra %}
+    <span class="badge badge-ok fs-6 py-2 px-3">Cadena íntegra · {{ total }} registros verificados</span>
+  {% else %}
+    <span class="badge badge-revision fs-6 py-2 px-3">Cadena ALTERADA{% if alterado %} desde el registro #{{ alterado }}{% endif %}</span>
+  {% endif %}
+</div>
+
+<form class="row g-2 mb-3" method="get">
+  <div class="col-12 col-md-5"><input class="form-control" name="q" value="{{ q }}" placeholder="Buscar en descripción o usuario" aria-label="Buscar"></div>
+  <div class="col-8 col-md-3">
+    <select class="form-select" name="accion" aria-label="Acción">
+      <option value="">Todas las acciones</option>
+      {% for a in acciones %}<option value="{{ a }}" {% if a == accion %}selected{% endif %}>{{ a }}</option>{% endfor %}
+    </select>
+  </div>
+  <div class="col-4 col-md-2"><button class="btn btn-outline-primary w-100">Filtrar</button></div>
+</form>
+
+<div class="card">
+  <div class="table-responsive">
+    <table class="table table-sm align-middle mb-0">
+      <thead><tr><th>#</th><th>Fecha</th><th>Usuario</th><th>Acción</th><th>Descripción</th><th>IP</th><th>Hash</th></tr></thead>
+      <tbody>
+      {% for r in pagina %}
+        <tr>
+          <td class="text-secondary">{{ r.pk }}</td>
+          <td class="text-nowrap">{{ r.fecha|date:"d-m-Y H:i:s" }}</td>
+          <td>{{ r.usuario_nombre|default:"—" }}</td>
+          <td><span class="badge {% if r.accion == 'ALERTA_DISCREPANCIA' or r.accion == 'ACCESO_DENEGADO' or r.accion == 'LOGIN_FALLIDO' or r.accion == 'OPERACION_RECHAZADA' %}badge-revision{% else %}badge-ok{% endif %}">{{ r.accion }}</span></td>
+          <td>{{ r.descripcion }}</td>
+          <td class="small text-secondary">{{ r.ip|default:"—" }}</td>
+          <td class="hash" title="{{ r.hash }}">{{ r.hash|slice:":12" }}…</td>
+        </tr>
+      {% empty %}
+        <tr><td colspan="7" class="text-center text-secondary py-4">Sin registros.</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% include "includes/paginacion.html" %}
+{% endblock %}

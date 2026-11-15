@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block titulo %}Emitir guía{% endblock %}
+{% block contenido %}
+<div class="row justify-content-center">
+  <div class="col-12 col-md-8 col-lg-6">
+    <a class="small" href="{% url 'guias_lista' %}">← Guías de despacho</a>
+    <h1 class="titulo-pagina mt-2">Emitir guía de despacho</h1>
+    <p class="subtitulo mb-4">Registre la carga antes de que el camión salga de la faena.</p>
+    <div class="card"><div class="card-body p-4">
+      <form method="post" novalidate>
+        {% csrf_token %}
+        {% include "includes/form_campos.html" %}
+        <button class="btn btn-primary btn-lg w-100">Emitir guía</button>
+      </form>
+    </div></div>
+  </div>
+</div>
+{% endblock %}

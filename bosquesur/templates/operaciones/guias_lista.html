@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block titulo %}Guías de despacho{% endblock %}
+{% block contenido %}
+<div class="d-flex flex-wrap justify-content-between align-items-end gap-3 mb-4">
+  <div>
+    <h1 class="titulo-pagina">Guías de despacho</h1>
+    <p class="subtitulo">Cada camión que sale de faena viaja con una guía. La guía queda en tránsito hasta que el patio la recepciona.</p>
+  </div>
+  {% if puede_emitir %}<a class="btn btn-primary btn-lg-movil" href="{% url 'guia_nueva' %}">Emitir guía</a>{% endif %}
+</div>
+
+<form class="row g-2 mb-3" method="get">
+  <div class="col-12 col-md-5"><input class="form-control" name="q" value="{{ q }}" placeholder="Buscar por N° de guía, patente o conductor" aria-label="Buscar"></div>
+  <div class="col-8 col-md-3">
+    <select class="form-select" name="estado" aria-label="Estado">
+      <option value="">Todos los estados</option>
+      {% for valor, texto in estados %}<option value="{{ valor }}" {% if valor == estado %}selected{% endif %}>{{ texto }}</option>{% endfor %}
+    </select>
+  </div>
+  <div class="col-4 col-md-2"><button class="btn btn-outline-primary w-100">Filtrar</button></div>
+</form>
+
+<div class="card">
+  <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0">
+      <thead><tr>
+        <th>N° guía</th><th>Emitida</th><th>Faena → Patio</th><th>Producto</th><th class="num">Enviado (m³)</th><th class="num">Recibido (m³)</th><th>Estado</th>
+      </tr></thead>
+      <tbody>
+      {% for guia in pagina %}
+        <tr>
+          <td><a class="fw-semibold" href="{% url 'guia_detalle' guia.pk %}">{{ guia.numero }}</a><div class="small text-secondary">{{ guia.patente_camion }}</div></td>
+          <td class="text-nowrap">{{ guia.fecha_emision|date:"d-m-Y H:i" }}</td>
+          <td>{{ guia.faena }} <span class="text-secondary">→</span> {{ guia.patio_destino }}</td>
+          <td>{{ guia.producto.nombre }}</td>
+          <td class="num">{{ guia.volumen_enviado|floatformat:"3g" }}</td>
+          <td class="num">{% if guia.recepcion %}{{ guia.recepcion.volumen_recibido|floatformat:"3g" }}{% else %}—{% endif %}</td>
+          <td>{% include "includes/estado_guia.html" %}</td>
+        </tr>
+      {% empty %}
+        <tr><td colspan="7" class="text-center text-secondary py-4">No hay guías que coincidan con el filtro.</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% include "includes/paginacion.html" %}
+{% endblock %}

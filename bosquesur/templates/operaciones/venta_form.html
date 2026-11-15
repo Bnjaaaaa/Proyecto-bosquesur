@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% block titulo %}Nuevo pedido de venta{% endblock %}
+{% block contenido %}
+<a class="small" href="{% url 'ventas_lista' %}">← Volver a pedidos de venta</a>
+<h1 class="titulo-pagina mt-2">Registrar pedido de venta comercial</h1>
+<p class="subtitulo">Seleccione el cliente, el patio de despacho y los paquetes QR elaborados o procesados a reservar para el envío.</p>
+
+<form method="post" class="mt-3">
+  {% csrf_token %}
+  {% if form.non_field_errors %}
+  <div class="alert alert-danger">{{ form.non_field_errors }}</div>
+  {% endif %}
+  <div class="row g-4">
+    <div class="col-12 col-lg-5">
+      <div class="card">
+        <div class="card-header">Datos comerciales</div>
+        <div class="card-body">
+          {% for campo in form %}
+            {% if campo.name != "paquetes" %}
+            <div class="mb-3">
+              <label class="form-label fw-semibold" for="{{ campo.id_for_label }}">{{ campo.label }}{% if not campo.field.required %} <span class="text-secondary fw-normal">(opcional)</span>{% endif %}</label>
+              {{ campo }}
+              {% for e in campo.errors %}<div class="text-danger small mt-1">{{ e }}</div>{% endfor %}
+            </div>
+            {% endif %}
+          {% endfor %}
+          <div class="d-flex flex-wrap gap-2 mt-4">
+            <button class="btn btn-primary btn-lg-movil">Reservar paquetes y crear pedido</button>
+            <a class="btn btn-outline-secondary" href="{% url 'ventas_lista' %}">Cancelar</a>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-lg-7">
+      <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <span>Paquetes QR disponibles para reserva</span>
+          <span class="small text-secondary">{{ paquetes_disponibles|length }} disponibles</span>
+        </div>
+        {% if form.paquetes.errors %}<div class="alert alert-danger m-3 mb-0">{{ form.paquetes.errors }}</div>{% endif %}
+        <div class="table-responsive" style="max-height: 440px;">
+          <table class="table table-sm table-hover align-middle mb-0">
+            <thead>
+              <tr><th>Sel.</th><th>Código QR</th><th>Producto</th><th>Proceso / Calidad</th><th>Ubicación</th><th class="num">Volumen</th></tr>
+            </thead>
+            <tbody>
+            {% for p in paquetes_disponibles %}
+              <tr>
+                <td>
+                  <input class="form-check-input" type="checkbox" name="paquetes" value="{{ p.pk }}" id="pkt_{{ p.pk }}"
+                    {% if form.paquetes.value and p.pk|stringformat:'s' in form.paquetes.value %}checked{% endif %}>
+                </td>
+                <td><label class="fw-semibold hash mb-0" for="pkt_{{ p.pk }}">{{ p.codigo_qr }}</label></td>
+                <td>{{ p.producto.nombre }}</td>
+                <td>{{ p.get_proceso_actual_display }} · {{ p.get_calidad_display }}</td>
+                <td><span class="badge bg-light text-dark border">{{ p.ubicacion.codigo }}</span> <span class="small text-secondary">{{ p.ubicacion.patio.nombre }}</span></td>
+                <td class="num fw-semibold">{{ p.volumen_m3|floatformat:"3g" }} m³</td>
+              </tr>
+            {% empty %}
+              <tr><td colspan="6" class="text-center text-secondary py-4">No hay paquetes disponibles para comercializar.</td></tr>
+            {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</form>
+{% endblock %}

@@ -1,0 +1,94 @@
+/* BosqueSur Maderas SpA · estilos del prototipo (sobre Bootstrap 5.3) */
+:root {
+  --bs-font-sans-serif: "Segoe UI", system-ui, -apple-system, Roboto, "Helvetica Neue", Arial, sans-serif;
+  --bs-body-bg: #f5f4ef;
+  --bs-body-color: #1f2620;
+  --bs-primary: #2f5d3a;
+  --bs-primary-rgb: 47, 93, 58;
+  --bs-link-color: #2f5d3a;
+  --bs-link-color-rgb: 47, 93, 58;
+  --bs-link-hover-color: #1f3f27;
+  --bs-link-hover-color-rgb: 31, 63, 39;
+  --bosque-900: #17301d;
+  --bosque-700: #2f5d3a;
+  --bosque-100: #e4ece2;
+  --madera-500: #a8672c;
+  --madera-100: #f4e7d8;
+  --tinta-2: #55605a;
+  --linea: #dcdcd2;
+}
+
+body { background: var(--bs-body-bg); min-height: 100vh; }
+a { text-underline-offset: 2px; }
+
+.navbar-bosque { background: var(--bosque-900); }
+.navbar-bosque .navbar-brand { font-weight: 700; letter-spacing: .02em; }
+.navbar-bosque .navbar-brand span { color: #c9a27a; font-weight: 400; }
+.navbar-bosque .nav-link { color: rgba(255,255,255,.75); border-radius: .375rem; padding-inline: .75rem !important; }
+.navbar-bosque .nav-link:hover { color: #fff; }
+.navbar-bosque .nav-link.active { color: #fff; background: rgba(255,255,255,.12); }
+
+.btn-primary {
+  --bs-btn-bg: var(--bosque-700); --bs-btn-border-color: var(--bosque-700);
+  --bs-btn-hover-bg: #244a2d; --bs-btn-hover-border-color: #244a2d;
+  --bs-btn-active-bg: #1f3f27; --bs-btn-active-border-color: #1f3f27;
+  --bs-btn-disabled-bg: var(--bosque-700); --bs-btn-disabled-border-color: var(--bosque-700);
+}
+.btn-outline-primary {
+  --bs-btn-color: var(--bosque-700); --bs-btn-border-color: var(--bosque-700);
+  --bs-btn-hover-bg: var(--bosque-700); --bs-btn-hover-border-color: var(--bosque-700);
+  --bs-btn-active-bg: var(--bosque-700);
+}
+.form-control:focus, .form-select:focus { border-color: #7fa487; box-shadow: 0 0 0 .2rem rgba(47,93,58,.18); }
+
+.card { border: 1px solid var(--linea); border-radius: .75rem; box-shadow: none; }
+.card-header { background: transparent; border-bottom: 1px solid var(--linea); font-weight: 600; }
+
+.titulo-pagina { font-weight: 700; font-size: 1.5rem; margin: 0; }
+.subtitulo { color: var(--tinta-2); margin: .15rem 0 0; }
+
+.kpi { padding: 1rem 1.1rem; }
+.kpi .etiqueta { color: var(--tinta-2); font-size: .82rem; text-transform: uppercase; letter-spacing: .04em; }
+.kpi .valor { font-size: 1.75rem; font-weight: 700; line-height: 1.2; font-variant-numeric: tabular-nums; }
+.kpi .detalle { color: var(--tinta-2); font-size: .85rem; }
+
+.table { --bs-table-bg: transparent; }
+.table thead th { color: var(--tinta-2); font-weight: 600; font-size: .8rem; text-transform: uppercase; letter-spacing: .03em; border-bottom-color: var(--linea); }
+.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+.badge-estado { font-weight: 600; }
+.badge-transito { background: var(--madera-100); color: #7a4510; }
+.badge-ok { background: var(--bosque-100); color: var(--bosque-900); }
+.badge-revision { background: #fbe3e1; color: #8a1f17; }
+
+/* Tarjetas táctiles para el operador de patio (uso en celular) */
+.guia-pendiente { display: block; color: inherit; text-decoration: none; transition: border-color .15s; }
+.guia-pendiente:hover { border-color: var(--bosque-700); color: inherit; }
+.guia-pendiente .numero { font-weight: 700; font-size: 1.1rem; }
+.guia-pendiente .volumen { font-size: 1.4rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+
+.dato-guia dt { color: var(--tinta-2); font-weight: 400; font-size: .85rem; }
+.dato-guia dd { font-weight: 600; margin-bottom: .75rem; }
+
+.linea-tiempo { list-style: none; padding-left: 0; margin: 0; }
+.linea-tiempo li { position: relative; padding: 0 0 1rem 1.5rem; border-left: 2px solid var(--linea); margin-left: .4rem; }
+.linea-tiempo li:last-child { border-left-color: transparent; }
+.linea-tiempo li::before { content: ""; position: absolute; left: -7px; top: .3rem; width: 12px; height: 12px; border-radius: 50%; background: var(--bosque-700); }
+.linea-tiempo li.alerta::before { background: #c0392b; }
+.linea-tiempo .cuando { color: var(--tinta-2); font-size: .82rem; }
+
+.hash { font-family: ui-monospace, Consolas, monospace; font-size: .75rem; color: var(--tinta-2); }
+
+.login-fondo { background: linear-gradient(160deg, var(--bosque-900) 0%, #2b4a31 60%, #5b4128 100%); }
+.login-card { max-width: 400px; }
+
+.vista-previa-discrepancia { border-radius: .5rem; padding: .75rem 1rem; background: var(--bosque-100); }
+.vista-previa-discrepancia.fuera { background: #fbe3e1; }
+
+.grafico { position: relative; height: 280px; }
+
+@media (max-width: 576px) {
+  .titulo-pagina { font-size: 1.25rem; }
+  .kpi .valor { font-size: 1.4rem; }
+  .btn-lg-movil { padding: .8rem 1rem; font-size: 1.1rem; width: 100%; }
+}

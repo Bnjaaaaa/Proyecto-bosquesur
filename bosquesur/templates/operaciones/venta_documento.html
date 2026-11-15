@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+{% block titulo %}Documento Comercial Interno {{ pedido.documento_interno|default:pedido.numero }}{% endblock %}
+{% block contenido %}
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3 d-print-none">
+  <a class="small" href="{% url 'venta_detalle' pedido.pk %}">← Volver al pedido {{ pedido.numero }}</a>
+  <button class="btn btn-primary btn-sm" onclick="window.print()">Imprimir / Guardar PDF</button>
+</div>
+
+<div class="card border-2">
+  <div class="card-body p-4 p-md-5">
+    <div class="alert alert-warning text-center fw-bold text-uppercase mb-4" role="note">
+      DOCUMENTO COMERCIAL INTERNO SIMULADO — NO VÁLIDO COMO DTE NI DOCUMENTO TRIBUTARIO ANTE EL SII
+    </div>
+
+    <div class="d-flex flex-wrap justify-content-between align-items-start border-bottom pb-3 mb-4 gap-3">
+      <div>
+        <h2 class="h4 fw-bold mb-1" style="color: var(--bosque);">BOSQUESUR MADERAS S.A.</h2>
+        <div class="small text-secondary">Sistema Integrado de Gestión Forestal y Maderera · Región del Maule, Chile</div>
+        <div class="small text-secondary">Patio de despacho: <strong>{{ pedido.patio_despacho.nombre }}</strong></div>
+      </div>
+      <div class="border border-2 rounded p-3 text-center" style="min-width: 240px; border-color: var(--bosque) !important;">
+        <div class="small text-uppercase fw-semibold text-secondary">Guía Comercial Interna</div>
+        <div class="fs-5 fw-bold" style="color: var(--bosque);">{{ pedido.documento_interno|default:"BORRADOR NO DESPACHADO" }}</div>
+        <div class="small text-secondary">Pedido: {{ pedido.numero }}</div>
+      </div>
+    </div>
+
+    <div class="row g-3 mb-4 small">
+      <div class="col-12 col-md-6">
+        <div class="border rounded p-3 h-100">
+          <div class="fw-bold text-uppercase text-secondary mb-2">Antecedentes del cliente</div>
+          <div><strong>Razón social:</strong> {{ pedido.cliente.razon_social }}</div>
+          <div><strong>RUT:</strong> {{ pedido.cliente.rut }}</div>
+          <div><strong>Giro / Dirección:</strong> {{ pedido.cliente.giro }} · {{ pedido.cliente.direccion|default:"Retiro / despacho acordado" }}</div>
+          <div><strong>Contacto:</strong> {{ pedido.cliente.contacto|default:"—" }}</div>
+        </div>
+      </div>
+      <div class="col-12 col-md-6">
+        <div class="border rounded p-3 h-100">
+          <div class="fw-bold text-uppercase text-secondary mb-2">Antecedentes del transporte y respaldo</div>
+          <div><strong>Estado del pedido:</strong> {{ pedido.get_estado_display }}</div>
+          <div><strong>Fecha despacho:</strong> {% if pedido.fecha_despacho %}{{ pedido.fecha_despacho|date:"d-m-Y H:i" }}{% else %}Pendiente de salida{% endif %}</div>
+          <div><strong>Patente camión:</strong> {{ pedido.patente_camion|default:"Por asignar" }}</div>
+          <div><strong>Conductor:</strong> {{ pedido.conductor|default:"Por asignar" }}</div>
+        </div>
+      </div>
+    </div>
+
+    <h3 class="h6 fw-bold mb-2">Detalle de paquetes QR despachados</h3>
+    <div class="table-responsive mb-4">
+      <table class="table table-bordered table-sm align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th>Código QR</th>
+            <th>Producto</th>
+            <th>Calidad</th>
+            <th>Proceso posterior</th>
+            <th class="num">Piezas</th>
+            <th class="num">Volumen (m³)</th>
+          </tr>
+        </thead>
+        <tbody>
+        {% for p in paquetes %}
+          <tr>
+            <td class="fw-semibold hash">{{ p.codigo_qr }}</td>
+            <td>{{ p.producto.nombre }}</td>
+            <td>{{ p.get_calidad_display }}</td>
+            <td>{{ p.get_proceso_actual_display }}</td>
+            <td class="num">{{ p.piezas }}</td>
+            <td class="num">{{ p.volumen_m3|floatformat:"3g" }}</td>
+          </tr>
+        {% endfor %}
+        </tbody>
+        <tfoot>
+          <tr class="fw-bold table-light">
+            <td colspan="5" class="text-end">Total volumen certificado en paquetes</td>
+            <td class="num">{{ pedido.volumen_total_m3|floatformat:"3g" }} m³</td>
+          </tr>
+          <tr class="fw-bold table-light">
+            <td colspan="5" class="text-end">Valorización comercial neta referencial (Sin IVA / No SII)</td>
+            <td class="num">${{ pedido.monto_neto_clp }} CLP</td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+
+    <div class="row pt-4 mt-4 border-top small text-secondary">
+      <div class="col-6">
+        <div><strong>Emitido internamente por:</strong> {% if pedido.despachado_por %}{{ pedido.despachado_por.nombre_visible }}{% else %}{{ pedido.creado_por.nombre_visible }}{% endif %}</div>
+        <div>Registro trazable en bitácora de auditoría BosqueSur.</div>
+      </div>
+      <div class="col-6 text-end">
+        <div>Firma / Recepción conforme en destino</div>
+        <div class="mt-3 border-top d-inline-block pt-1" style="min-width: 180px;">Nombre y RUT receptor</div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

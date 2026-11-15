@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block titulo %}Generar paquete QR{% endblock %}
+{% block contenido %}
+<div class="row justify-content-center">
+  <div class="col-12 col-md-8 col-lg-6">
+    <a class="small" href="{% url 'paquetes_lista' %}">← Paquetes QR</a>
+    <h1 class="titulo-pagina mt-2">Generar paquete con código QR</h1>
+    <p class="subtitulo mb-4">Agrupa madera aserrada producida en una orden, asigna ubicación en bodega y genera su identificador único QR.</p>
+    <div class="card"><div class="card-body p-4">
+      <form method="post" novalidate>
+        {% csrf_token %}
+        {% include "includes/form_campos.html" %}
+        <button class="btn btn-primary btn-lg w-100">Crear paquete y emitir QR</button>
+      </form>
+    </div></div>
+  </div>
+</div>
+{% endblock %}

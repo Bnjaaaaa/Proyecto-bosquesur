@@ -1,0 +1,147 @@
+{% extends "base.html" %}
+{% block titulo %}{{ paquete.codigo_qr }}{% endblock %}
+{% block contenido %}
+<a class="small" href="{% url 'paquetes_lista' %}">← Paquetes QR</a>
+<div class="d-flex flex-wrap justify-content-between align-items-end gap-3 mt-2 mb-4">
+  <div>
+    <h1 class="titulo-pagina">Paquete <span class="hash fs-4">{{ paquete.codigo_qr }}</span></h1>
+    <p class="subtitulo">{{ paquete.producto.nombre }} · {{ paquete.volumen_m3|floatformat:"3g" }} m³ ({{ paquete.piezas }} piezas) · {{ paquete.get_estado_display }}</p>
+  </div>
+  <button class="btn btn-outline-primary btn-sm" onclick="window.print()">Imprimir Etiqueta QR</button>
+</div>
+
+<div class="row g-4">
+  <div class="col-12 col-lg-5">
+    <div class="card mb-4">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <span>Etiqueta física de identificación QR</span>
+        <span class="badge {% if paquete.estado == 'DESPACHADO' %}bg-secondary{% elif paquete.estado == 'RESERVADO' %}badge-transito{% else %}badge-ok{% endif %}">{{ paquete.get_estado_display }}</span>
+      </div>
+      <div class="card-body d-flex flex-wrap align-items-center gap-3">
+        <div class="border rounded p-2 bg-white text-center" style="width: 148px;">
+          {{ qr_svg|safe }}
+          <div class="fw-bold small mt-1">{{ paquete.codigo_qr }}</div>
+        </div>
+        <dl class="row dato-guia mb-0 flex-grow-1">
+          <dt class="col-5">Producto</dt><dd class="col-7">{{ paquete.producto.nombre }}</dd>
+          <dt class="col-5">Volumen</dt><dd class="col-7">{{ paquete.volumen_m3|floatformat:"3g" }} m³ ({{ paquete.piezas }} pzas)</dd>
+          <dt class="col-5">Calidad</dt><dd class="col-7">{{ paquete.get_calidad_display }}</dd>
+          <dt class="col-5">Proceso</dt><dd class="col-7">{{ paquete.get_proceso_actual_display }}</dd>
+          <dt class="col-5">Ubicación</dt><dd class="col-7 mb-0">{{ paquete.ubicacion.codigo }} · {{ paquete.ubicacion.nombre }} ({{ paquete.ubicacion.patio.nombre }})</dd>
+        </dl>
+      </div>
+    </div>
+
+    {% if puede_gestionar %}
+      {% if paquete.estado != 'RESERVADO' %}
+      <div class="card mb-4">
+        <div class="card-header">Aplicar proceso posterior (Secado / Impregnado / Reproceso)</div>
+        <div class="card-body">
+          <form method="post" action="{% url 'paquete_procesar' paquete.pk %}">
+            {% csrf_token %}
+            {% with form=form_proceso %}{% include "includes/form_campos.html" %}{% endwith %}
+            <button class="btn btn-primary w-100">Registrar proceso posterior</button>
+          </form>
+        </div>
+      </div>
+      {% endif %}
+      <div class="card">
+        <div class="card-header">Trasladar de ubicación en bodega</div>
+        <div class="card-body">
+          <form method="post" action="{% url 'paquete_mover' paquete.pk %}">
+            {% csrf_token %}
+            {% with form=form_movimiento %}{% include "includes/form_campos.html" %}{% endwith %}
+            <button class="btn btn-outline-primary w-100">Mover paquete</button>
+          </form>
+        </div>
+      </div>
+    {% endif %}
+  </div>
+
+  <div class="col-12 col-lg-7">
+    <div class="card mb-4">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <span>Trazabilidad de extremo a extremo (Bosque → Cliente)</span>
+        {% if traza.trazado_directo %}
+          <span class="badge badge-ok">Vínculo directo 100%</span>
+        {% else %}
+          <span class="badge bg-light text-dark border">Origen por lote de patio</span>
+        {% endif %}
+      </div>
+      <div class="card-body">
+        <ul class="linea-tiempo">
+          <li>
+            <div class="cuando">1. ORIGEN FORESTAL Y PROVEEDOR</div>
+            {% if traza.faena %}
+              <strong>{{ traza.faena.nombre }}</strong> ({{ traza.faena.codigo_predio }}) · Contrato {{ traza.faena.contrato_vigente }}
+              {% if traza.proveedor %}<div class="small text-secondary">Proveedor: {{ traza.proveedor.razon_social }} ({{ traza.proveedor.rut }})</div>{% endif %}
+              {% if traza.lote %}<div class="small text-secondary">Lote de cosecha: <strong>{{ traza.lote.codigo }}</strong> ({{ traza.lote.volumen_cosechado|floatformat:"3g" }} m³ · {{ traza.lote.cuadrilla }})</div>{% endif %}
+            {% else %}
+              <span class="text-secondary">Sin vínculo forestal previo registrado.</span>
+            {% endif %}
+          </li>
+          <li>
+            <div class="cuando">2. DESPACHO DESDE BOSQUE Y RECEPCIÓN EN PLANTA</div>
+            {% if traza.guia %}
+              <a class="fw-semibold" href="{% url 'guia_detalle' traza.guia.pk %}">{{ traza.guia.numero }}</a> ·
+              {{ traza.guia.volumen_enviado|floatformat:"3g" }} m³ (Camión {{ traza.guia.patente_camion }})
+              {% if traza.recepcion %}
+                <div class="small text-secondary">Recepcionado: {{ traza.recepcion.volumen_recibido|floatformat:"3g" }} m³ · Merma {{ traza.recepcion.porcentaje_discrepancia|floatformat:2 }}%</div>
+              {% endif %}
+            {% else %}
+              <span class="text-secondary">Stock consolidado en patio {{ traza.orden.patio.nombre }}.</span>
+            {% endif %}
+          </li>
+          <li>
+            <div class="cuando">3. TRANSFORMACIÓN EN ASERRADERO</div>
+            <strong>{{ traza.orden.numero }}</strong> ({{ traza.orden.fecha|date:"d-m-Y H:i" }}) ·
+            {{ traza.orden.volumen_entrada|floatformat:"3g" }} m³ {{ traza.orden.producto_entrada.nombre }} →
+            {{ traza.orden.volumen_salida|floatformat:"3g" }} m³ {{ traza.orden.producto_salida.nombre }}
+            <div class="small text-secondary">Rendimiento de aserrío: {{ traza.orden.rendimiento|floatformat:1 }}%</div>
+          </li>
+          {% for h in traza.historial %}
+          <li>
+            <div class="cuando">4. EVENTO DE PAQUETE · {{ h.fecha|date:"d-m-Y H:i" }} · {{ h.usuario.nombre_visible }}</div>
+            <strong>{{ h.get_tipo_evento_display }}</strong>
+            {% if h.ubicacion_origen or h.ubicacion_destino %}
+              <div class="small text-secondary">{% if h.ubicacion_origen %}{{ h.ubicacion_origen.codigo }} → {% endif %}{% if h.ubicacion_destino %}{{ h.ubicacion_destino.codigo }}{% endif %}</div>
+            {% endif %}
+            {% if h.merma_m3 > 0 %}<div class="small text-danger">Merma de proceso: -{{ h.merma_m3|floatformat:"3g" }} m³</div>{% endif %}
+            {% if h.observacion %}<div class="small">{{ h.observacion }}</div>{% endif %}
+          </li>
+          {% endfor %}
+          <li>
+            <div class="cuando">5. DESTINO COMERCIAL Y DESPACHO A CLIENTE</div>
+            {% if traza.pedido %}
+              <a class="fw-semibold" href="{% url 'venta_detalle' traza.pedido.pk %}">{{ traza.pedido.numero }}</a> ·
+              Cliente: <strong>{{ traza.pedido.cliente.razon_social }}</strong> ({{ traza.pedido.get_estado_display }})
+              {% if traza.pedido.documento_interno %}
+                <div class="small text-secondary">Guía comercial interna simulada (Sin SII): <strong>{{ traza.pedido.documento_interno }}</strong></div>
+              {% endif %}
+            {% else %}
+              <span class="text-secondary">Disponible / en planta para comercialización.</span>
+            {% endif %}
+          </li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">Bitácora criptográfica del paquete</div>
+      <div class="card-body">
+        <ul class="linea-tiempo">
+          {% for e in traza.auditoria %}
+          <li>
+            <div class="cuando">{{ e.fecha|date:"d-m-Y H:i:s" }} · {{ e.usuario_nombre|default:"sistema" }} · {{ e.accion }}</div>
+            <div>{{ e.descripcion }}</div>
+            <div class="hash">#{{ e.hash|slice:":16" }}…</div>
+          </li>
+          {% empty %}
+          <li>Sin eventos adicionales en bitácora.</li>
+          {% endfor %}
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

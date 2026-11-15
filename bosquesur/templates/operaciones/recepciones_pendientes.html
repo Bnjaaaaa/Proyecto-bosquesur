@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block titulo %}Recepción en patio{% endblock %}
+{% block contenido %}
+<h1 class="titulo-pagina">Camiones por recepcionar</h1>
+<p class="subtitulo mb-3">{% if user.patio %}{{ user.patio }} · {% endif %}{{ guias|length }} guía{{ guias|length|pluralize }} en tránsito, de la más antigua a la más reciente.</p>
+
+<form class="d-flex gap-2 mb-4" method="get">
+  <input class="form-control form-control-lg" name="q" value="{{ q }}" placeholder="N° de guía o patente" aria-label="Buscar guía o patente" autocapitalize="characters">
+  <button class="btn btn-outline-primary">Buscar</button>
+</form>
+
+<div class="row g-3">
+  {% for guia in guias %}
+  <div class="col-12 col-md-6 col-xl-4">
+    <a class="card guia-pendiente h-100" href="{% url 'recepcionar' guia.pk %}">
+      <div class="card-body">
+        <div class="d-flex justify-content-between align-items-start mb-2">
+          <span class="numero">{{ guia.numero }}</span>
+          <span class="badge badge-estado badge-transito">{{ guia.patente_camion }}</span>
+        </div>
+        <div class="volumen">{{ guia.volumen_enviado|floatformat:"3g" }} m³</div>
+        <div class="text-secondary">{{ guia.producto.nombre }}</div>
+        <hr class="my-2">
+        <div class="small">{{ guia.faena }} → {{ guia.patio_destino }}</div>
+        <div class="small text-secondary">Salió {{ guia.fecha_emision|date:"d-m-Y H:i" }} · {{ guia.conductor }}</div>
+      </div>
+    </a>
+  </div>
+  {% empty %}
+  <div class="col-12"><div class="card"><div class="card-body text-center text-secondary py-5">No hay camiones en tránsito hacia este patio.</div></div></div>
+  {% endfor %}
+</div>
+{% endblock %}

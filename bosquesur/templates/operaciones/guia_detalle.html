@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+{% block titulo %}{{ guia.numero }}{% endblock %}
+{% block contenido %}
+<a class="small" href="{% url 'guias_lista' %}">← Guías de despacho</a>
+<div class="d-flex flex-wrap justify-content-between align-items-end gap-3 mt-2 mb-4">
+  <div>
+    <h1 class="titulo-pagina">Guía {{ guia.numero }} {% include "includes/estado_guia.html" %}</h1>
+    <p class="subtitulo">Trazabilidad completa del despacho: emisión, recepción, movimiento de inventario y bitácora.</p>
+  </div>
+  {% if puede_recepcionar %}<a class="btn btn-primary btn-lg-movil" href="{% url 'recepcionar' guia.pk %}">Recepcionar esta guía</a>{% endif %}
+</div>
+
+<div class="row g-4">
+  <div class="col-12 col-lg-5">
+    <div class="card mb-4">
+      <div class="card-header">Despacho</div>
+      <div class="card-body">
+        <dl class="row dato-guia mb-0">
+          <dt class="col-5">Faena de origen</dt>
+          <dd class="col-7">{{ guia.faena }}{% if guia.faena.proveedor %}<div class="small text-secondary">{{ guia.faena.proveedor.razon_social }} · {{ guia.faena.contrato_vigente }}</div>{% endif %}</dd>
+          {% if guia.lote_cosecha %}
+          <dt class="col-5">Lote de cosecha</dt><dd class="col-7">{{ guia.lote_cosecha.codigo }} ({{ guia.lote_cosecha.cuadrilla }})</dd>
+          {% endif %}
+          <dt class="col-5">Patio de destino</dt><dd class="col-7">{{ guia.patio_destino }}</dd>
+          <dt class="col-5">Producto</dt><dd class="col-7">{{ guia.producto.nombre }}</dd>
+          <dt class="col-5">Volumen enviado</dt><dd class="col-7">{{ guia.volumen_enviado|floatformat:"3g" }} m³</dd>
+          <dt class="col-5">Camión</dt><dd class="col-7">{{ guia.patente_camion }} · {{ guia.conductor }}</dd>
+          <dt class="col-5">Emitida por</dt><dd class="col-7">{{ guia.emitida_por.nombre_visible }}</dd>
+          <dt class="col-5">Fecha emisión</dt><dd class="col-7 mb-0">{{ guia.fecha_emision|date:"d-m-Y H:i" }}</dd>
+        </dl>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-header">Recepción en patio</div>
+      <div class="card-body">
+        {% if recepcion %}
+        <dl class="row dato-guia mb-0">
+          <dt class="col-5">Volumen recibido</dt><dd class="col-7">{{ recepcion.volumen_recibido|floatformat:"3g" }} m³</dd>
+          <dt class="col-5">Discrepancia</dt>
+          <dd class="col-7">{{ recepcion.discrepancia|floatformat:"3g" }} m³ ({{ recepcion.porcentaje_discrepancia|floatformat:2 }}%)
+            {% if recepcion.requiere_revision %}<span class="badge badge-revision ms-1">Sobre tolerancia</span>{% endif %}</dd>
+          <dt class="col-5">Recibida por</dt><dd class="col-7">{{ recepcion.recibida_por.nombre_visible }}</dd>
+          <dt class="col-5">Fecha</dt><dd class="col-7">{{ recepcion.fecha|date:"d-m-Y H:i" }}</dd>
+          {% if recepcion.observacion %}<dt class="col-5">Observación</dt><dd class="col-7 mb-0">{{ recepcion.observacion }}</dd>{% endif %}
+        </dl>
+        {% else %}
+        <p class="text-secondary mb-0">El camión aún no llega al patio. La guía está en tránsito.</p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <div class="col-12 col-lg-7">
+    <div class="card mb-4">
+      <div class="card-header">Movimientos de inventario generados</div>
+      <div class="table-responsive">
+        <table class="table align-middle mb-0">
+          <thead><tr><th>Fecha</th><th>Tipo</th><th>Patio</th><th class="num">Cantidad</th><th class="num">Saldo</th></tr></thead>
+          <tbody>
+          {% for m in movimientos %}
+            <tr><td class="text-nowrap">{{ m.fecha|date:"d-m-Y H:i" }}</td><td>{{ m.get_tipo_display }}</td><td>{{ m.patio }}</td>
+              <td class="num">+{{ m.cantidad|floatformat:"3g" }}</td><td class="num">{{ m.saldo_resultante|floatformat:"3g" }}</td></tr>
+          {% empty %}
+            <tr><td colspan="5" class="text-secondary text-center py-3">Sin movimientos todavía.</td></tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-header">Bitácora de auditoría de esta guía</div>
+      <div class="card-body">
+        <ul class="linea-tiempo">
+          {% for e in eventos %}
+          <li class="{% if e.accion == 'ALERTA_DISCREPANCIA' %}alerta{% endif %}">
+            <div class="cuando">{{ e.fecha|date:"d-m-Y H:i:s" }} · {{ e.usuario_nombre|default:"sistema" }} · {{ e.accion }}</div>
+            <div>{{ e.descripcion }}</div>
+            <div class="hash" title="Hash SHA-256 encadenado">#{{ e.hash|slice:":16" }}…</div>
+          </li>
+          {% empty %}
+          <li>Sin eventos.</li>
+          {% endfor %}
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

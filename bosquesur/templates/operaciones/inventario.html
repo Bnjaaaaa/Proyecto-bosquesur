@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+{% block titulo %}Inventario{% endblock %}
+{% block contenido %}
+<div class="d-flex flex-wrap justify-content-between align-items-end gap-3 mb-4">
+  <div>
+    <h1 class="titulo-pagina">Inventario por patio</h1>
+    <p class="subtitulo">Saldos actuales. Cada cambio queda en el kárdex con su guía u orden de producción de respaldo.</p>
+  </div>
+  {% if not user.patio or user.is_superuser %}
+  <form method="get" class="d-flex gap-2">
+    <select class="form-select" name="patio" aria-label="Patio" onchange="this.form.submit()">
+      <option value="">Todos los patios</option>
+      {% for p in patios %}<option value="{{ p.pk }}" {% if patio_id == p.pk|stringformat:'s' %}selected{% endif %}>{{ p }}</option>{% endfor %}
+    </select>
+  </form>
+  {% endif %}
+</div>
+
+<div class="row g-3 mb-4">
+  <div class="col-6 col-lg-3"><div class="card kpi"><div class="etiqueta">Rollizo en patio</div><div class="valor">{{ total_rollizo|floatformat:"1g" }}</div><div class="detalle">m³ de materia prima</div></div></div>
+  <div class="col-6 col-lg-3"><div class="card kpi"><div class="etiqueta">Madera aserrada</div><div class="valor">{{ total_aserrado|floatformat:"1g" }}</div><div class="detalle">m³ de producto terminado</div></div></div>
+  <div class="col-6 col-lg-3"><div class="card kpi"><div class="etiqueta">Insumos y repuestos</div><div class="valor">{{ total_insumo|floatformat:"1g" }}</div><div class="detalle">unidades/litros disponibles</div></div></div>
+</div>
+
+<div class="row g-4">
+  <div class="col-12 col-xl-5">
+    <div class="card">
+      <div class="card-header">Saldos</div>
+      <div class="table-responsive">
+        <table class="table align-middle mb-0">
+          <thead><tr><th>Patio</th><th>Producto</th><th class="num">Stock (m³)</th></tr></thead>
+          <tbody>
+          {% for s in saldos %}
+            <tr><td>{{ s.patio }}</td><td>{{ s.producto.nombre }}<div class="small text-secondary">{{ s.producto.get_tipo_display }}</div></td><td class="num fw-semibold">{{ s.cantidad|floatformat:"3g" }}</td></tr>
+          {% empty %}
+            <tr><td colspan="3" class="text-center text-secondary py-4">Sin stock registrado.</td></tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  <div class="col-12 col-xl-7">
+    <div class="card">
+      <div class="card-header">Kárdex · últimos 30 movimientos</div>
+      <div class="table-responsive">
+        <table class="table table-sm align-middle mb-0">
+          <thead><tr><th>Fecha</th><th>Movimiento</th><th>Respaldo</th><th class="num">Cantidad</th><th class="num">Saldo</th></tr></thead>
+          <tbody>
+          {% for m in movimientos %}
+            <tr>
+              <td class="text-nowrap">{{ m.fecha|date:"d-m H:i" }}</td>
+              <td>{{ m.get_tipo_display }}<div class="small text-secondary">{{ m.producto.nombre }} · {{ m.patio }}</div></td>
+              <td>
+                {% if m.guia %}<a href="{% url 'guia_detalle' m.guia.pk %}">{{ m.guia.numero }}</a>
+                {% elif m.compra %}<a href="{% url 'compra_detalle' m.compra.pk %}">{{ m.compra.numero }}</a>
+                {% elif m.venta %}<a href="{% url 'venta_detalle' m.venta.pk %}">{{ m.venta.numero }}</a>
+                {% elif m.paquete %}<a href="{% url 'paquete_detalle' m.paquete.pk %}">{{ m.paquete.codigo_qr }}</a>
+                {% elif m.orden %}{{ m.orden.numero }}
+                {% else %}—{% endif %}
+              </td>
+              <td class="num {% if m.cantidad < 0 %}text-danger{% endif %}">{% if m.cantidad > 0 %}+{% endif %}{{ m.cantidad|floatformat:"3g" }}</td>
+              <td class="num">{{ m.saldo_resultante|floatformat:"3g" }}</td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="5" class="text-center text-secondary py-4">Sin movimientos.</td></tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="card mt-4">
+  <div class="card-header d-flex justify-content-between align-items-center">
+    <span>Ubicaciones físicas en patio y bodega</span>
+    <a class="small" href="{% url 'paquetes_lista' %}">Ver paquetes QR →</a>
+  </div>
+  <div class="table-responsive">
+    <table class="table table-sm align-middle mb-0">
+      <thead><tr><th>Código</th><th>Nombre</th><th>Patio</th><th>Tipo de zona</th><th>Estado</th></tr></thead>
+      <tbody>
+      {% for u in ubicaciones %}
+        <tr>
+          <td class="fw-semibold hash">{{ u.codigo }}</td>
+          <td>{{ u.nombre }}</td>
+          <td>{{ u.patio.nombre }}</td>
+          <td>{{ u.get_tipo_display }}</td>
+          <td><span class="badge badge-ok">Activa</span></td>
+        </tr>
+      {% empty %}
+        <tr><td colspan="5" class="text-center text-secondary py-3">Sin ubicaciones registradas.</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

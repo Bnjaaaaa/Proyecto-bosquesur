@@ -1,0 +1,1 @@
+{% if guia.estado == 'EMITIDA' %}<span class="badge badge-estado badge-transito">En tránsito</span>{% elif guia.recepcion.requiere_revision %}<span class="badge badge-estado badge-revision">Recepcionada · revisar</span>{% else %}<span class="badge badge-estado badge-ok">Recepcionada</span>{% endif %}

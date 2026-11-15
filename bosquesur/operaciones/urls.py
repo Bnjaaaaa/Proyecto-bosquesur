@@ -1,0 +1,37 @@
+from django.urls import path
+
+from . import views
+
+urlpatterns = [
+    path("dashboard/", views.dashboard, name="dashboard"),
+    path("cosecha/", views.cosecha_lista, name="cosecha_lista"),
+    path("cosecha/nueva/", views.cosecha_nueva, name="cosecha_nueva"),
+    path("guias/", views.guias_lista, name="guias_lista"),
+    path("guias/nueva/", views.guia_nueva, name="guia_nueva"),
+    path("guias/<int:pk>/", views.guia_detalle, name="guia_detalle"),
+    path("recepcion/", views.recepciones_pendientes, name="recepciones_pendientes"),
+    path("recepcion/<int:pk>/", views.recepcionar, name="recepcionar"),
+    path("inventario/", views.inventario, name="inventario"),
+    path("produccion/", views.produccion_lista, name="produccion_lista"),
+    path("produccion/nueva/", views.produccion_nueva, name="produccion_nueva"),
+    path("paquetes/", views.paquetes_lista, name="paquetes_lista"),
+    path("paquetes/nuevo/", views.paquete_nuevo, name="paquete_nuevo"),
+    path("paquetes/buscar-qr/", views.paquete_buscar_qr, name="paquete_buscar_qr"),
+    path("paquetes/qr/<str:codigo_qr>/", views.paquete_buscar_qr, name="paquete_por_qr"),
+    path("paquetes/<int:pk>/", views.paquete_detalle, name="paquete_detalle"),
+    path("paquetes/<int:pk>/procesar/", views.paquete_procesar, name="paquete_procesar"),
+    path("paquetes/<int:pk>/mover/", views.paquete_mover, name="paquete_mover"),
+    path("compras/", views.compras_lista, name="compras_lista"),
+    path("compras/nueva/", views.compra_nueva, name="compra_nueva"),
+    path("compras/<int:pk>/", views.compra_detalle, name="compra_detalle"),
+    path("compras/<int:pk>/resolver/", views.compra_resolver, name="compra_resolver"),
+    path("compras/<int:pk>/recepcionar/", views.compra_recepcionar, name="compra_recepcionar"),
+    path("ventas/", views.ventas_lista, name="ventas_lista"),
+    path("ventas/nueva/", views.venta_nueva, name="venta_nueva"),
+    path("ventas/<int:pk>/", views.venta_detalle, name="venta_detalle"),
+    path("ventas/<int:pk>/despachar/", views.venta_despachar, name="venta_despachar"),
+    path("ventas/<int:pk>/documento/", views.venta_documento, name="venta_documento"),
+    path("reportes/", views.reportes, name="reportes"),
+    path("reportes/exportar-csv/", views.reportes_csv, name="reportes_csv"),
+    path("app-movil/", views.app_movil, name="app_movil"),
+]

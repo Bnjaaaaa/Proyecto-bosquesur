@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block titulo %}No encontrado{% endblock %}
+{% block contenido %}
+<div class="text-center py-5">
+  <h1 class="titulo-pagina mb-2">Página no encontrada</h1>
+  <p class="subtitulo mb-4">El documento no existe o no está disponible para su usuario.</p>
+  <a class="btn btn-primary" href="{% url 'inicio' %}">Volver al inicio</a>
+</div>
+{% endblock %}

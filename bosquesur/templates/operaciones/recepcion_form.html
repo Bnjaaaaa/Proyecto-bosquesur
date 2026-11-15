@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block titulo %}Recepcionar {{ guia.numero }}{% endblock %}
+{% block contenido %}
+<div class="row justify-content-center">
+  <div class="col-12 col-md-8 col-lg-6">
+    <a class="small" href="{% url 'recepciones_pendientes' %}">← Camiones por recepcionar</a>
+    <h1 class="titulo-pagina mt-2">Recepcionar {{ guia.numero }}</h1>
+    <p class="subtitulo mb-4">{{ guia.faena }} → {{ guia.patio_destino }} · {{ guia.patente_camion }}</p>
+
+    <div class="card mb-3"><div class="card-body d-flex justify-content-between">
+      <div><div class="text-secondary small">Según guía</div><div class="fs-4 fw-bold" id="enviado" data-valor="{{ guia.volumen_enviado|stringformat:'s' }}">{{ guia.volumen_enviado|floatformat:"3g" }} m³</div></div>
+      <div class="text-end"><div class="text-secondary small">Producto</div><div class="fw-semibold">{{ guia.producto.nombre }}</div></div>
+    </div></div>
+
+    <div class="card"><div class="card-body p-4">
+      <form method="post" novalidate>
+        {% csrf_token %}
+        {% include "includes/form_campos.html" %}
+        <div class="vista-previa-discrepancia mb-3" id="vista-previa" aria-live="polite" hidden></div>
+        <button class="btn btn-primary btn-lg w-100">Confirmar recepción</button>
+        <p class="form-text mt-2 mb-0">Al confirmar, el volumen recibido se suma al inventario del patio en una sola transacción. Tolerancia de merma: {{ tolerancia }}%.</p>
+      </form>
+    </div></div>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+  (function () {
+    const enviado = parseFloat(document.getElementById("enviado").dataset.valor);
+    const tolerancia = {{ tolerancia|stringformat:"s" }};
+    const entrada = document.getElementById("id_volumen_recibido");
+    const caja = document.getElementById("vista-previa");
+    const fmt = new Intl.NumberFormat("es-CL", { maximumFractionDigits: 3 });
+    function actualizar() {
+      const recibido = parseFloat(String(entrada.value).replace(",", "."));
+      if (!recibido || recibido <= 0) { caja.hidden = true; return; }
+      const dif = enviado - recibido;
+      const pct = dif / enviado * 100;
+      const fuera = Math.abs(pct) > tolerancia;
+      caja.hidden = false;
+      caja.classList.toggle("fuera", fuera);
+      caja.innerHTML = "<strong>" + (dif >= 0 ? "Merma" : "Sobrante") + ": " + fmt.format(Math.abs(dif)) +
+        " m³ (" + pct.toFixed(2).replace(".", ",") + "%)</strong><br>" +
+        (fuera ? "Supera la tolerancia: la recepción quedará marcada para revisión." : "Dentro de la tolerancia.");
+    }
+    entrada.addEventListener("input", actualizar);
+    actualizar();
+  })();
+</script>
+{% endblock %}

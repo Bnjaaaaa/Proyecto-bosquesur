@@ -1,0 +1,652 @@
+{% extends "base.html" %}
+{% block titulo %}App Móvil Terreno y Bodega QR (API JWT){% endblock %}
+{% block head %}
+<style>
+  .phone-bezel {
+    max-width: 410px;
+    margin: 0 auto;
+    border: 10px solid #1e2420;
+    border-radius: 34px;
+    background: #f5f6f4;
+    box-shadow: 0 18px 40px rgba(23, 48, 29, 0.22);
+    overflow: hidden;
+  }
+  .phone-statusbar {
+    background: #17301d;
+    color: #fff;
+    padding: 8px 16px;
+    font-size: 0.78rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .phone-notch {
+    width: 96px;
+    height: 12px;
+    background: #0e1c12;
+    border-radius: 99px;
+  }
+  .phone-screen {
+    padding: 14px;
+    min-height: 560px;
+    max-height: 670px;
+    overflow-y: auto;
+  }
+  .phone-nav .nav-link {
+    font-size: 0.82rem;
+    padding: 7px 10px;
+    font-weight: 600;
+    color: #17301d;
+  }
+  .phone-nav .nav-link.active {
+    background-color: #17301d;
+    color: #fff;
+  }
+  .json-log {
+    background: #141a16;
+    color: #c8f0d2;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 0.78rem;
+    border-radius: 8px;
+    padding: 12px;
+    max-height: 460px;
+    overflow: auto;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+  #qr-video-box video {
+    width: 100%;
+    border-radius: 10px;
+    background: #000;
+    max-height: 200px;
+    object-fit: cover;
+  }
+</style>
+{% endblock %}
+{% block contenido %}
+<div class="d-flex flex-wrap justify-content-between align-items-end gap-3 mb-4">
+  <div>
+    <h1 class="titulo-pagina">Cliente móvil operativo (API REST + JWT)</h1>
+    <p class="subtitulo">Simulador interactivo conectado 100% en tiempo real a los endpoints JSON protegidos con JSON Web Token (<code>/api/*</code>), idénticos a la app Flutter.</p>
+  </div>
+  <span class="badge badge-ok px-3 py-2">Arquitectura API-First · Sin CSRF de sesión · Bearer JWT</span>
+</div>
+
+<div class="row g-4 align-items-start">
+  <!-- Smartphone Frame -->
+  <div class="col-12 col-lg-5">
+    <div class="phone-bezel">
+      <div class="phone-statusbar">
+        <span>BosqueSur Móvil</span>
+        <div class="phone-notch"></div>
+        <span id="mob-status-badge" class="badge bg-warning text-dark">Sin JWT</span>
+      </div>
+
+      <div class="phone-screen">
+        <!-- Auth Box -->
+        <div class="card mb-3 border-0 shadow-sm">
+          <div class="card-body p-3">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+              <strong class="small text-uppercase text-secondary">Autenticación JWT (<code>/api/token/</code>)</strong>
+              <button type="button" id="btn-logout-mob" class="btn btn-link btn-sm p-0 text-danger d-none">Cerrar JWT</button>
+            </div>
+            <div class="d-flex flex-wrap gap-1 mb-2">
+              <button type="button" class="btn btn-outline-primary btn-sm quick-user" data-user="faena">Perfil Faena</button>
+              <button type="button" class="btn btn-outline-primary btn-sm quick-user" data-user="patio">Perfil Patio</button>
+              <button type="button" class="btn btn-outline-primary btn-sm quick-user" data-user="gerente">Perfil Gerencia</button>
+            </div>
+            <form id="form-mob-login" class="row g-2">
+              <div class="col-5"><input class="form-control form-control-sm" id="mob-user" value="{{ usuario_actual.username }}" placeholder="Usuario" required></div>
+              <div class="col-4"><input class="form-control form-control-sm" id="mob-pass" type="password" value="Bosque2026!" placeholder="Clave" required></div>
+              <div class="col-3"><button class="btn btn-primary btn-sm w-100" type="submit">Entrar</button></div>
+            </form>
+            <div id="mob-user-info" class="small text-success mt-2 d-none"></div>
+          </div>
+        </div>
+
+        <!-- Tabs -->
+        <ul class="nav nav-pills nav-fill phone-nav mb-3 bg-white rounded p-1 shadow-sm" role="tablist">
+          <li class="nav-item"><button class="nav-link active" data-bs-toggle="pill" data-bs-target="#tab-bosque" type="button">1. Bosque</button></li>
+          <li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#tab-patio" type="button">2. Patio</button></li>
+          <li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#tab-qr" type="button">3. Bodega QR</button></li>
+        </ul>
+
+        <div id="mob-alert" class="alert py-2 small d-none" role="alert"></div>
+
+        <div class="tab-content">
+          <!-- Tab 1: Bosque -->
+          <div class="tab-pane fade show active" id="tab-bosque">
+            <div class="card border-0 shadow-sm mb-3">
+              <div class="card-header bg-white fw-semibold small">Registrar lote de cosecha en predio</div>
+              <div class="card-body p-3">
+                <form id="form-mob-cosecha" class="vstack gap-2">
+                  <select class="form-select form-select-sm" id="cos-faena" required></select>
+                  <select class="form-select form-select-sm" id="cos-producto" required></select>
+                  <div class="row g-2">
+                    <div class="col-6"><input class="form-control form-control-sm" id="cos-vol" type="number" step="0.001" min="0.001" placeholder="Volumen m³" required></div>
+                    <div class="col-6"><input class="form-control form-control-sm" id="cos-cuad" value="Cuadrilla Sur" placeholder="Cuadrilla" required></div>
+                  </div>
+                  <button class="btn btn-primary btn-sm w-100" type="submit">Registrar cosecha (POST API)</button>
+                </form>
+              </div>
+            </div>
+
+            <div class="card border-0 shadow-sm">
+              <div class="card-header bg-white fw-semibold small">Emitir guía de despacho desde faena</div>
+              <div class="card-body p-3">
+                <form id="form-mob-guia" class="vstack gap-2">
+                  <select class="form-select form-select-sm" id="gui-faena" required></select>
+                  <select class="form-select form-select-sm" id="gui-lote"><option value="">Sin lote asociado (opcional)</option></select>
+                  <select class="form-select form-select-sm" id="gui-patio" required></select>
+                  <select class="form-select form-select-sm" id="gui-producto" required></select>
+                  <div class="row g-2">
+                    <div class="col-6"><input class="form-control form-control-sm" id="gui-vol" type="number" step="0.001" min="0.001" placeholder="Vol. m³" required></div>
+                    <div class="col-6"><input class="form-control form-control-sm" id="gui-patente" placeholder="ABCD12" required></div>
+                  </div>
+                  <input class="form-control form-control-sm" id="gui-conductor" placeholder="Nombre del conductor" required>
+                  <button class="btn btn-primary btn-sm w-100" type="submit">Emitir guía de despacho</button>
+                </form>
+              </div>
+            </div>
+          </div>
+
+          <!-- Tab 2: Patio -->
+          <div class="tab-pane fade" id="tab-patio">
+            <div class="card border-0 shadow-sm mb-3">
+              <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                <span class="fw-semibold small">Guías en tránsito (<code>EMITIDA</code>)</span>
+                <button type="button" id="btn-refrescar-guias" class="btn btn-outline-primary btn-sm py-0">Refrescar</button>
+              </div>
+              <div class="card-body p-2">
+                <select class="form-select form-select-sm mb-2" id="rec-guia-select"></select>
+                <div id="rec-guia-info" class="small text-secondary mb-2 px-1">Inicie sesión para cargar guías en tránsito.</div>
+                <form id="form-mob-recepcion" class="vstack gap-2">
+                  <input class="form-control form-control-sm" id="rec-vol" type="number" step="0.001" min="0.001" placeholder="Volumen cubicado recibido (m³)" required>
+                  <div id="rec-merma-preview" class="small fw-semibold px-1 text-secondary"></div>
+                  <input class="form-control form-control-sm" id="rec-obs" placeholder="Observación de patio (opcional)">
+                  <button class="btn btn-primary btn-sm w-100" type="submit">Confirmar recepción en patio</button>
+                </form>
+              </div>
+            </div>
+          </div>
+
+          <!-- Tab 3: Bodega QR -->
+          <div class="tab-pane fade" id="tab-qr">
+            <div class="card border-0 shadow-sm mb-3">
+              <div class="card-header bg-white fw-semibold small">Escáner QR de paquete y trazabilidad</div>
+              <div class="card-body p-3">
+                <div class="input-group input-group-sm mb-2">
+                  <input class="form-control" id="qr-input" placeholder="Código QR (Ej.: BS-PKT-000001)">
+                  <button class="btn btn-primary" type="button" id="btn-buscar-qr">Buscar</button>
+                </div>
+                <div class="d-flex gap-1 mb-2">
+                  <select class="form-select form-select-sm" id="qr-demo-select">
+                    <option value="">Paquetes demo rápidos…</option>
+                    {% for p in paquetes_demo %}
+                      <option value="{{ p.codigo_qr }}">{{ p.codigo_qr }} · {{ p.producto.nombre }} ({{ p.volumen_m3|floatformat:"1g" }} m³)</option>
+                    {% endfor %}
+                  </select>
+                  <button type="button" class="btn btn-outline-secondary btn-sm text-nowrap" id="btn-camara-qr">📷 Cámara</button>
+                </div>
+                <div id="qr-video-box" class="d-none mb-2">
+                  <video id="qr-video" playsinline></video>
+                  <button type="button" class="btn btn-sm btn-outline-danger w-100 mt-1" id="btn-cerrar-camara">Detener cámara</button>
+                </div>
+                <div id="qr-resultado" class="small text-secondary">Seleccione o escanee un paquete para ver su ficha y acciones.</div>
+              </div>
+            </div>
+
+            <div id="qr-acciones" class="card border-0 shadow-sm d-none">
+              <div class="card-header bg-white fw-semibold small">Acciones en bodega sobre paquete activo</div>
+              <div class="card-body p-3 vstack gap-3">
+                <form id="form-mob-proceso" class="vstack gap-2 border-bottom pb-2">
+                  <div class="fw-semibold small">Aplicar proceso posterior</div>
+                  <select class="form-select form-select-sm" id="proc-tipo">
+                    <option value="SECADO">Secado en cámara</option>
+                    <option value="IMPREGNADO">Impregnado CCA</option>
+                    <option value="CEPILLADO">Cepillado / Terminación</option>
+                    <option value="REPROCESO">Reproceso / Cambio Calidad</option>
+                  </select>
+                  <div class="row g-2">
+                    <div class="col-6"><input class="form-control form-control-sm" id="proc-merma" type="number" step="0.001" min="0" value="0.000" placeholder="Merma m³"></div>
+                    <div class="col-6">
+                      <select class="form-select form-select-sm" id="proc-ubicacion"><option value="">Mantener ubicación</option></select>
+                    </div>
+                  </div>
+                  <button class="btn btn-primary btn-sm" type="submit">Aplicar proceso (POST API)</button>
+                </form>
+
+                <form id="form-mob-mover" class="vstack gap-2">
+                  <div class="fw-semibold small">Trasladar de ubicación física</div>
+                  <select class="form-select form-select-sm" id="mov-ubicacion" required></select>
+                  <input class="form-control form-control-sm" id="mov-obs" placeholder="Motivo del traslado">
+                  <button class="btn btn-outline-primary btn-sm" type="submit">Mover ubicación (POST API)</button>
+                </form>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Live JWT API Inspector -->
+  <div class="col-12 col-lg-7">
+    <div class="card mb-3">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <span>Inspector de comunicación REST API + JWT en tiempo real</span>
+        <span id="api-method-badge" class="badge bg-secondary">Listo</span>
+      </div>
+      <div class="card-body">
+        <div class="small mb-2">
+          <strong>Endpoint actual:</strong> <code id="api-last-url">POST /api/token/</code> ·
+          <strong>Estado HTTP:</strong> <span id="api-last-status">—</span>
+        </div>
+        <div class="small mb-2 text-truncate">
+          <strong>Bearer JWT activo:</strong> <code id="api-jwt-preview">No autenticado</code>
+        </div>
+        <div class="json-log" id="api-json-log">{
+  "mensaje": "Presione un perfil rápido (o ingrese usuario/clave) y luego 'Entrar' para obtener su JWT e interactuar con la API REST de BosqueSur."
+}</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">Endpoints consumidos por el cliente móvil (Web JWT y App Flutter)</div>
+      <div class="table-responsive">
+        <table class="table table-sm mb-0 small">
+          <thead><tr><th>Método</th><th>Ruta API</th><th>Propósito operativo</th></tr></thead>
+          <tbody>
+            <tr><td><code>POST</code></td><td><code>/api/token/</code></td><td>Autenticación Stateless con Access + Refresh JWT y rol del usuario.</td></tr>
+            <tr><td><code>POST</code></td><td><code>/api/lotes-cosecha/</code></td><td>Registro de cubicación de cosecha en predio y origen forestal.</td></tr>
+            <tr><td><code>POST</code></td><td><code>/api/guias/</code></td><td>Emisión remota de guía de despacho con patente y lote asociado.</td></tr>
+            <tr><td><code>POST</code></td><td><code>/api/guias/{id}/recepcionar/</code></td><td>Control de recepción en patio, cálculo automático de merma y entrada a stock.</td></tr>
+            <tr><td><code>GET</code></td><td><code>/api/paquetes/?codigo_qr=...</code></td><td>Consulta instantánea al escanear código QR en patio o bodega.</td></tr>
+            <tr><td><code>GET</code></td><td><code>/api/paquetes/{id}/trazabilidad/</code></td><td>Árbol completo Bosque → Cosecha → Guía → Producción → Procesos → Cliente.</td></tr>
+            <tr><td><code>POST</code></td><td><code>/api/paquetes/{id}/procesar/</code></td><td>Registro de secado, impregnado, cepillado y merma asociada.</td></tr>
+            <tr><td><code>POST</code></td><td><code>/api/paquetes/{id}/mover/</code></td><td>Traslado entre ubicaciones físicas de bodega (con historial auditable).</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(() => {
+  let accessToken = sessionStorage.getItem("bs_jwt_access") || "";
+  let activePaquete = null;
+  let guiasCache = [];
+  let camStream = null;
+
+  const $ = (id) => document.getElementById(id);
+
+  function showAlert(msg, tipo = "info") {
+    const box = $("mob-alert");
+    box.className = `alert alert-${tipo} py-2 small`;
+    box.textContent = msg;
+    box.classList.remove("d-none");
+  }
+
+  function clearAlert() {
+    $("mob-alert").classList.add("d-none");
+  }
+
+  function updateInspector(method, url, status, payload) {
+    $("api-method-badge").textContent = method;
+    $("api-method-badge").className = `badge ${status >= 200 && status < 300 ? "bg-success" : "bg-danger"}`;
+    $("api-last-url").textContent = `${method} ${url}`;
+    $("api-last-status").textContent = status;
+    $("api-json-log").textContent = JSON.stringify(payload, null, 2);
+  }
+
+  async function apiFetch(url, options = {}) {
+    const method = (options.method || "GET").toUpperCase();
+    const headers = Object.assign({ "Content-Type": "application/json" }, options.headers || {});
+    if (accessToken) {
+      headers["Authorization"] = `Bearer ${accessToken}`;
+    }
+    const resp = await fetch(url, { ...options, method, headers });
+    let data = {};
+    try { data = await resp.json(); } catch (_) { data = { status: resp.status }; }
+    updateInspector(method, url, resp.status, data);
+    if (!resp.ok) {
+      const msg = data.detalle || data.detail || JSON.stringify(data);
+      throw new Error(msg);
+    }
+    return data;
+  }
+
+  function renderAuthUI(usuario = null) {
+    if (accessToken) {
+      $("mob-status-badge").textContent = "JWT Activo";
+      $("mob-status-badge").className = "badge bg-success";
+      $("btn-logout-mob").classList.remove("d-none");
+      $("api-jwt-preview").textContent = accessToken.slice(0, 48) + "...";
+      if (usuario) {
+        $("mob-user-info").textContent = `Conectado: ${usuario.first_name} ${usuario.last_name} (${usuario.rol})`;
+        $("mob-user-info").classList.remove("d-none");
+      }
+    } else {
+      $("mob-status-badge").textContent = "Sin JWT";
+      $("mob-status-badge").className = "badge bg-warning text-dark";
+      $("btn-logout-mob").classList.add("d-none");
+      $("mob-user-info").classList.add("d-none");
+      $("api-jwt-preview").textContent = "No autenticado";
+    }
+  }
+
+  function fillSelect(selId, items, labelFn, emptyLabel = null) {
+    const sel = $(selId);
+    sel.innerHTML = "";
+    if (emptyLabel !== null) {
+      const opt = document.createElement("option");
+      opt.value = "";
+      opt.textContent = emptyLabel;
+      sel.appendChild(opt);
+    }
+    items.forEach((item) => {
+      const opt = document.createElement("option");
+      opt.value = item.id;
+      opt.textContent = labelFn(item);
+      sel.appendChild(opt);
+    });
+  }
+
+  async function cargarCatalogosYGuias() {
+    if (!accessToken) return;
+    try {
+      const [faenas, patios, productos, ubicaciones, lotesResp, guiasResp] = await Promise.all([
+        apiFetch("/api/faenas/"),
+        apiFetch("/api/patios/"),
+        apiFetch("/api/productos/"),
+        apiFetch("/api/ubicaciones/"),
+        apiFetch("/api/lotes-cosecha/"),
+        apiFetch("/api/guias/?estado=EMITIDA"),
+      ]);
+      const rollizos = productos.filter((p) => p.tipo === "ROLLIZO");
+      const lotes = lotesResp.results || lotesResp;
+      guiasCache = guiasResp.results || guiasResp;
+
+      fillSelect("cos-faena", faenas, (f) => f.nombre);
+      fillSelect("cos-producto", rollizos, (p) => p.nombre);
+      fillSelect("gui-faena", faenas, (f) => f.nombre);
+      fillSelect("gui-lote", lotes, (l) => `${l.codigo} · ${l.faena_nombre} (${l.volumen_cosechado} m³)`, "Sin lote asociado (opcional)");
+      fillSelect("gui-patio", patios, (p) => p.nombre);
+      fillSelect("gui-producto", rollizos, (p) => p.nombre);
+      fillSelect("proc-ubicacion", ubicaciones, (u) => `${u.codigo} · ${u.nombre}`, "Mantener ubicación");
+      fillSelect("mov-ubicacion", ubicaciones, (u) => `${u.codigo} · ${u.nombre} (${u.patio_nombre})`);
+      renderGuiasPendientes();
+    } catch (err) {
+      showAlert("Error cargando catálogos: " + err.message, "danger");
+    }
+  }
+
+  function renderGuiasPendientes() {
+    fillSelect("rec-guia-select", guiasCache, (g) => `${g.numero} · ${g.faena_nombre} (${g.volumen_enviado} m³)`);
+    actualizarInfoGuiaSeleccionada();
+  }
+
+  function actualizarInfoGuiaSeleccionada() {
+    const id = parseInt($("rec-guia-select").value || "0", 10);
+    const g = guiasCache.find((x) => x.id === id);
+    if (!g) {
+      $("rec-guia-info").textContent = "No hay guías pendientes en estado EMITIDA.";
+      $("rec-merma-preview").textContent = "";
+      return;
+    }
+    $("rec-guia-info").textContent = `${g.producto_nombre} · Camión ${g.patente_camion} (${g.conductor}) · Enviado: ${g.volumen_enviado} m³`;
+    calcularMermaPreview();
+  }
+
+  function calcularMermaPreview() {
+    const id = parseInt($("rec-guia-select").value || "0", 10);
+    const g = guiasCache.find((x) => x.id === id);
+    const rec = parseFloat($("rec-vol").value || "0");
+    if (!g || !rec) { $("rec-merma-preview").textContent = ""; return; }
+    const env = parseFloat(g.volumen_enviado);
+    const diff = env - rec;
+    const pct = env > 0 ? (diff / env) * 100 : 0;
+    const el = $("rec-merma-preview");
+    el.textContent = `Merma proyectada: ${diff.toFixed(3)} m³ (${pct.toFixed(2)}%) ${pct > 3.0 ? "⚠ Sobre tolerancia 3%" : "✓ Normal"}`;
+    el.className = `small fw-semibold px-1 ${pct > 3.0 ? "text-danger" : "text-success"}`;
+  }
+
+  document.querySelectorAll(".quick-user").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      $("mob-user").value = btn.dataset.user;
+      $("mob-pass").value = "Bosque2026!";
+    });
+  });
+
+  $("form-mob-login").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    clearAlert();
+    try {
+      const data = await apiFetch("/api/token/", {
+        method: "POST",
+        body: JSON.stringify({ username: $("mob-user").value.trim(), password: $("mob-pass").value }),
+      });
+      accessToken = data.access;
+      sessionStorage.setItem("bs_jwt_access", accessToken);
+      renderAuthUI(data.usuario);
+      showAlert("Token JWT emitido correctamente.", "success");
+      await cargarCatalogosYGuias();
+    } catch (err) {
+      showAlert("Error de autenticación: " + err.message, "danger");
+    }
+  });
+
+  $("btn-logout-mob").addEventListener("click", () => {
+    accessToken = "";
+    sessionStorage.removeItem("bs_jwt_access");
+    renderAuthUI(null);
+    showAlert("Sesión JWT cerrada en cliente móvil.", "secondary");
+  });
+
+  $("form-mob-cosecha").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    clearAlert();
+    try {
+      const lote = await apiFetch("/api/lotes-cosecha/", {
+        method: "POST",
+        body: JSON.stringify({
+          faena: parseInt($("cos-faena").value, 10),
+          producto: parseInt($("cos-producto").value, 10),
+          volumen_cosechado: $("cos-vol").value,
+          cuadrilla: $("cos-cuad").value,
+          observacion: "Registrado desde App Móvil JWT",
+        }),
+      });
+      showAlert(`Lote ${lote.codigo} registrado en predio.`, "success");
+      $("cos-vol").value = "";
+      await cargarCatalogosYGuias();
+    } catch (err) {
+      showAlert(err.message, "danger");
+    }
+  });
+
+  $("form-mob-guia").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    clearAlert();
+    try {
+      const payload = {
+        faena: parseInt($("gui-faena").value, 10),
+        patio_destino: parseInt($("gui-patio").value, 10),
+        producto: parseInt($("gui-producto").value, 10),
+        volumen_enviado: $("gui-vol").value,
+        patente_camion: $("gui-patente").value,
+        conductor: $("gui-conductor").value,
+      };
+      if ($("gui-lote").value) payload.lote_cosecha = parseInt($("gui-lote").value, 10);
+      const guia = await apiFetch("/api/guias/", { method: "POST", body: JSON.stringify(payload) });
+      showAlert(`Guía ${guia.numero} emitida en tránsito.`, "success");
+      $("gui-vol").value = "";
+      await cargarCatalogosYGuias();
+    } catch (err) {
+      showAlert(err.message, "danger");
+    }
+  });
+
+  $("btn-refrescar-guias").addEventListener("click", cargarCatalogosYGuias);
+  $("rec-guia-select").addEventListener("change", actualizarInfoGuiaSeleccionada);
+  $("rec-vol").addEventListener("input", calcularMermaPreview);
+
+  $("form-mob-recepcion").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    clearAlert();
+    const id = $("rec-guia-select").value;
+    if (!id) return showAlert("Seleccione una guía emitida.", "warning");
+    try {
+      const res = await apiFetch(`/api/guias/${id}/recepcionar/`, {
+        method: "POST",
+        body: JSON.stringify({
+          volumen_recibido: $("rec-vol").value,
+          observacion: $("rec-obs").value || "Recepcionado vía App Móvil JWT",
+        }),
+      });
+      showAlert(`Guía ${res.numero} recepcionada correctamente.`, "success");
+      $("rec-vol").value = "";
+      $("rec-obs").value = "";
+      await cargarCatalogosYGuias();
+    } catch (err) {
+      showAlert(err.message, "danger");
+    }
+  });
+
+  async function buscarPaquetePorQR(codigo) {
+    if (!codigo) return;
+    clearAlert();
+    try {
+      const resp = await apiFetch(`/api/paquetes/?codigo_qr=${encodeURIComponent(codigo.trim())}`);
+      const lista = resp.results || resp;
+      if (!lista.length) {
+        $("qr-resultado").innerHTML = `<span class="text-danger">No existe paquete con QR '${codigo}'.</span>`;
+        $("qr-acciones").classList.add("d-none");
+        activePaquete = null;
+        return;
+      }
+      activePaquete = lista[0];
+      const traza = await apiFetch(`/api/paquetes/${activePaquete.id}/trazabilidad/`);
+      const p = activePaquete;
+      const origenTxt = traza.faena ? `${traza.faena.nombre} (${traza.guia ? traza.guia.numero : "Patio"})` : "Patio aserradero";
+      const destinoTxt = traza.pedido ? `${traza.pedido.numero} · ${traza.pedido.cliente}` : "Disponible en planta";
+      $("qr-resultado").innerHTML = `
+        <div class="border rounded p-2 bg-light">
+          <div class="fw-bold text-dark">${p.codigo_qr} · <span class="badge bg-success">${p.estado}</span></div>
+          <div>${p.producto_nombre} (${p.volumen_m3} m³ · ${p.piezas} pzas)</div>
+          <div><strong>Proceso:</strong> ${p.proceso_actual} · <strong>Ubicación:</strong> ${p.ubicacion_codigo}</div>
+          <div class="mt-1"><strong>Origen:</strong> ${origenTxt}</div>
+          <div><strong>Destino:</strong> ${destinoTxt}</div>
+        </div>`;
+      $("qr-acciones").classList.remove("d-none");
+    } catch (err) {
+      showAlert(err.message, "danger");
+    }
+  }
+
+  $("btn-buscar-qr").addEventListener("click", () => buscarPaquetePorQR($("qr-input").value));
+  $("qr-demo-select").addEventListener("change", (e) => {
+    if (e.target.value) {
+      $("qr-input").value = e.target.value;
+      buscarPaquetePorQR(e.target.value);
+    }
+  });
+
+  $("form-mob-proceso").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    if (!activePaquete) return;
+    clearAlert();
+    try {
+      const payload = {
+        proceso: $("proc-tipo").value,
+        merma_m3: $("proc-merma").value || "0",
+        observacion: "Proceso registrado desde App Móvil JWT",
+      };
+      if ($("proc-ubicacion").value) payload.ubicacion_destino = parseInt($("proc-ubicacion").value, 10);
+      const upd = await apiFetch(`/api/paquetes/${activePaquete.id}/procesar/`, {
+        method: "POST",
+        body: JSON.stringify(payload),
+      });
+      showAlert(`Proceso ${upd.proceso_actual} aplicado a ${upd.codigo_qr}.`, "success");
+      await buscarPaquetePorQR(upd.codigo_qr);
+    } catch (err) {
+      showAlert(err.message, "danger");
+    }
+  });
+
+  $("form-mob-mover").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    if (!activePaquete) return;
+    clearAlert();
+    try {
+      const upd = await apiFetch(`/api/paquetes/${activePaquete.id}/mover/`, {
+        method: "POST",
+        body: JSON.stringify({
+          ubicacion_destino: parseInt($("mov-ubicacion").value, 10),
+          observacion: $("mov-obs").value || "Traslado vía App Móvil JWT",
+        }),
+      });
+      showAlert(`Paquete ${upd.codigo_qr} trasladado a ${upd.ubicacion_codigo}.`, "success");
+      $("mov-obs").value = "";
+      await buscarPaquetePorQR(upd.codigo_qr);
+    } catch (err) {
+      showAlert(err.message, "danger");
+    }
+  });
+
+  function detenerCamara() {
+    if (camStream) {
+      camStream.getTracks().forEach((t) => t.stop());
+      camStream = null;
+    }
+    $("qr-video-box").classList.add("d-none");
+  }
+
+  $("btn-cerrar-camara").addEventListener("click", detenerCamara);
+  $("btn-camara-qr").addEventListener("click", async () => {
+    if (!navigator.mediaDevices || !("BarcodeDetector" in window)) {
+      showAlert("Este navegador no soporta BarcodeDetector nativo; use el selector rápido o ingrese el código QR manualmente.", "warning");
+      return;
+    }
+    try {
+      camStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+      const video = $("qr-video");
+      video.srcObject = camStream;
+      await video.play();
+      $("qr-video-box").classList.remove("d-none");
+      const detector = new window.BarcodeDetector({ formats: ["qr_code"] });
+      const scan = async () => {
+        if (!camStream) return;
+        const codes = await detector.detect(video);
+        if (codes.length > 0 && codes[0].rawValue) {
+          const val = codes[0].rawValue.trim();
+          $("qr-input").value = val;
+          detenerCamara();
+          await buscarPaquetePorQR(val);
+          return;
+        }
+        requestAnimationFrame(scan);
+      };
+      requestAnimationFrame(scan);
+    } catch (err) {
+      showAlert("No se pudo acceder a la cámara: " + err.message, "warning");
+    }
+  });
+
+  if (accessToken) {
+    renderAuthUI();
+    apiFetch("/api/yo/").then((u) => {
+      renderAuthUI(u);
+      return cargarCatalogosYGuias();
+    }).catch(() => {
+      accessToken = "";
+      sessionStorage.removeItem("bs_jwt_access");
+      renderAuthUI(null);
+    });
+  }
+})();
+</script>
+{% endblock %}

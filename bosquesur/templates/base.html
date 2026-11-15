@@ -1,0 +1,57 @@
+{% load static %}<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#17301d">
+  <title>{% block titulo %}BosqueSur{% endblock %} · BosqueSur Maderas</title>
+  <link rel="stylesheet" href="{% static 'vendor/bootstrap.min.css' %}">
+  <link rel="stylesheet" href="{% static 'css/app.css' %}">
+  {% block head %}{% endblock %}
+</head>
+<body>
+{% block cuerpo %}
+<nav class="navbar navbar-expand-xl navbar-dark navbar-bosque">
+  <div class="container-fluid px-3 px-xl-4">
+    <a class="navbar-brand text-nowrap" href="{% url 'inicio' %}">BosqueSur <span>Maderas</span></a>
+    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#menu" aria-controls="menu" aria-expanded="false" aria-label="Abrir menú">
+      <span class="navbar-toggler-icon"></span>
+    </button>
+    <div class="collapse navbar-collapse" id="menu">
+      <ul class="navbar-nav me-auto gap-xl-1 flex-wrap">
+        {% for item in menu %}
+        <li class="nav-item">
+          <a class="nav-link small text-nowrap {% if item.activo %}active{% endif %}" {% if item.activo %}aria-current="page"{% endif %} href="{% url item.url_name %}">{{ item.texto }}</a>
+        </li>
+        {% endfor %}
+      </ul>
+      <div class="d-flex flex-wrap align-items-center gap-2 text-white-50 small mt-2 mt-xl-0">
+        <a class="btn btn-sm btn-warning text-dark fw-semibold text-nowrap" href="{% url 'app_movil' %}">📱 App Móvil (JWT)</a>
+        <span class="text-nowrap"><span class="text-white">{{ user.nombre_visible }}</span> · {{ user.get_rol_display }}{% if user.faena %} · {{ user.faena }}{% elif user.patio %} · {{ user.patio }}{% endif %}</span>
+        {% if user.is_staff %}<a class="link-light" href="{% url 'admin:index' %}">Admin</a>{% endif %}
+        <form method="post" action="{% url 'logout' %}" class="m-0">{% csrf_token %}
+          <button class="btn btn-sm btn-outline-light">Salir</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</nav>
+
+<main class="container-xl py-4">
+  {% for m in messages %}
+  <div class="alert alert-{% if m.tags == 'error' %}danger{% else %}{{ m.tags }}{% endif %} alert-dismissible fade show" role="alert">
+    {{ m }}
+    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Cerrar"></button>
+  </div>
+  {% endfor %}
+  {% block contenido %}{% endblock %}
+</main>
+<footer class="container-xl pb-4 small text-secondary d-flex flex-wrap justify-content-between gap-2">
+  <span>Prototipo ES3 · Sistema Integrado de Gestión Forestal y Maderera · Proyecto de Integración TIHI63</span>
+  <span>Persistencia activa: <strong>{{ db_motor|upper }}</strong> · Documentos comerciales internos simulados (Sin SII)</span>
+</footer>
+{% endblock %}
+<script src="{% static 'vendor/bootstrap.bundle.min.js' %}"></script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

@@ -1,0 +1,120 @@
+{% extends "base.html" %}
+{% block titulo %}{{ pedido.numero }}{% endblock %}
+{% block contenido %}
+<a class="small" href="{% url 'ventas_lista' %}">← Pedidos de venta</a>
+<div class="d-flex flex-wrap justify-content-between align-items-end gap-3 mt-2 mb-4">
+  <div>
+    <h1 class="titulo-pagina">Pedido de venta {{ pedido.numero }}</h1>
+    <p class="subtitulo">{{ pedido.cliente.razon_social }} ({{ pedido.cliente.rut }}) · {{ pedido.patio_despacho.nombre }}</p>
+  </div>
+  <div class="d-flex flex-wrap gap-2 align-items-center">
+    {% if pedido.documento_interno %}
+      <a class="btn btn-primary btn-sm" href="{% url 'venta_documento' pedido.pk %}">Ver guía comercial interna (Simulada)</a>
+    {% endif %}
+    <span class="badge fs-6 {% if pedido.estado == 'DESPACHADO' %}badge-ok{% elif pedido.estado == 'ANULADO' %}badge-revision{% else %}badge-transito{% endif %}">
+      {{ pedido.get_estado_display }}
+    </span>
+  </div>
+</div>
+
+<div class="row g-4">
+  <div class="col-12 col-lg-5">
+    <div class="card mb-4">
+      <div class="card-header">Resumen comercial y logístico</div>
+      <div class="card-body">
+        <dl class="row dato-guia mb-0">
+          <dt class="col-5">Cliente</dt><dd class="col-7">{{ pedido.cliente.razon_social }}</dd>
+          <dt class="col-5">Dirección entrega</dt><dd class="col-7">{{ pedido.cliente.direccion|default:"Retiro / despacho acordado" }}</dd>
+          <dt class="col-5">Patio despacho</dt><dd class="col-7">{{ pedido.patio_despacho.nombre }}</dd>
+          <dt class="col-5">Volumen total</dt><dd class="col-7 fw-semibold">{{ pedido.volumen_total_m3|floatformat:"3g" }} m³</dd>
+          <dt class="col-5">Monto neto</dt><dd class="col-7 fw-bold">${{ pedido.monto_neto_clp }} CLP</dd>
+          <dt class="col-5">Creado por</dt><dd class="col-7">{{ pedido.creado_por.nombre_visible }} · {{ pedido.fecha_creacion|date:"d-m-Y H:i" }}</dd>
+          {% if pedido.estado == 'DESPACHADO' %}
+            <dt class="col-5">Doc. interno</dt><dd class="col-7 fw-bold">{{ pedido.documento_interno }} <span class="badge bg-secondary ms-1">Simulado Sin SII</span></dd>
+            <dt class="col-5">Transporte</dt><dd class="col-7">{{ pedido.patente_camion }} · {{ pedido.conductor }}</dd>
+            <dt class="col-5">Despachado</dt><dd class="col-7">{{ pedido.despachado_por.nombre_visible }} · {{ pedido.fecha_despacho|date:"d-m-Y H:i" }}</dd>
+          {% endif %}
+          <dt class="col-5">Observación</dt><dd class="col-7 mb-0">{{ pedido.observacion|default:"—" }}</dd>
+        </dl>
+      </div>
+    </div>
+
+    {% if puede_despachar %}
+    <div class="card mb-4">
+      <div class="card-header">Confirmar despacho comercial y rebaja de stock</div>
+      <div class="card-body">
+        <div class="alert alert-info py-2 small">
+          Al confirmar, los paquetes reservados pasarán a estado <strong>Despachado</strong>, se rebajará el inventario del patio y se generará un documento comercial interno simulado (sin integración tributaria SII).
+        </div>
+        <form method="post" action="{% url 'venta_despachar' pedido.pk %}">
+          {% csrf_token %}
+          {% with form=form_despacho %}{% include "includes/form_campos.html" %}{% endwith %}
+          <button class="btn btn-primary w-100 btn-lg-movil">Despachar pedido y emitir guía interna</button>
+        </form>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+
+  <div class="col-12 col-lg-7">
+    <div class="card mb-4">
+      <div class="card-header">Paquetes QR incluidos en el pedido ({{ paquetes|length }})</div>
+      <div class="table-responsive">
+        <table class="table table-sm align-middle mb-0">
+          <thead><tr><th>Código QR</th><th>Producto</th><th>Calidad / Proceso</th><th>Ubicación</th><th class="num">Volumen</th></tr></thead>
+          <tbody>
+          {% for p in paquetes %}
+            <tr>
+              <td><a class="fw-semibold hash text-decoration-none" href="{% url 'paquete_detalle' p.pk %}">{{ p.codigo_qr }}</a></td>
+              <td>{{ p.producto.nombre }}</td>
+              <td>{{ p.get_calidad_display }} · {{ p.get_proceso_actual_display }}</td>
+              <td>{{ p.ubicacion.codigo }}</td>
+              <td class="num">{{ p.volumen_m3|floatformat:"3g" }} m³</td>
+            </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="card mb-4">
+      <div class="card-header">Movimientos de salida en kárdex</div>
+      <div class="table-responsive">
+        <table class="table table-sm mb-0">
+          <thead><tr><th>Fecha</th><th>Producto</th><th>Paquete</th><th class="num">Cantidad</th><th class="num">Saldo</th></tr></thead>
+          <tbody>
+          {% for m in movimientos %}
+            <tr>
+              <td class="text-nowrap">{{ m.fecha|date:"d-m-Y H:i" }}</td>
+              <td>{{ m.producto.nombre }}</td>
+              <td>{% if m.paquete %}{{ m.paquete.codigo_qr }}{% else %}—{% endif %}</td>
+              <td class="num text-danger fw-semibold">{{ m.cantidad|floatformat:"3g" }}</td>
+              <td class="num">{{ m.saldo_resultante|floatformat:"3g" }}</td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="5" class="text-center text-secondary py-3">Pendiente de despacho físico.</td></tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">Auditoría criptográfica del pedido</div>
+      <div class="card-body">
+        <ul class="linea-tiempo">
+          {% for e in eventos %}
+          <li>
+            <div class="cuando">{{ e.fecha|date:"d-m-Y H:i:s" }} · {{ e.usuario_nombre|default:"sistema" }} · {{ e.accion }}</div>
+            <div>{{ e.descripcion }}</div>
+            <div class="hash">#{{ e.hash|slice:":16" }}…</div>
+          </li>
+          {% empty %}
+          <li>Sin eventos registrados.</li>
+          {% endfor %}
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

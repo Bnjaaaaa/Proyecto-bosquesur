@@ -1,0 +1,120 @@
+{% extends "base.html" %}
+{% load static %}
+{% block titulo %}Dashboard gerencial{% endblock %}
+{% block contenido %}
+<div class="d-flex flex-wrap justify-content-between align-items-end gap-3 mb-4">
+  <div>
+    <h1 class="titulo-pagina">Dashboard gerencial</h1>
+    <p class="subtitulo">Trazabilidad de madera desde la faena hasta el producto terminado · últimos {{ dias }} días.</p>
+  </div>
+  <div class="d-flex flex-wrap gap-2 align-items-center">
+    <a class="btn btn-sm btn-outline-primary" href="{% url 'reportes' %}">Reportes y CSV</a>
+    <a class="btn btn-sm btn-warning text-dark fw-semibold" href="{% url 'app_movil' %}">📱 App Móvil</a>
+    <div class="btn-group" role="group" aria-label="Periodo">
+      <a class="btn btn-sm {% if dias == 7 %}btn-primary{% else %}btn-outline-primary{% endif %}" href="?dias=7">7 días</a>
+      <a class="btn btn-sm {% if dias == 14 %}btn-primary{% else %}btn-outline-primary{% endif %}" href="?dias=14">14 días</a>
+      <a class="btn btn-sm {% if dias == 30 %}btn-primary{% else %}btn-outline-primary{% endif %}" href="?dias=30">30 días</a>
+    </div>
+  </div>
+</div>
+
+<div class="row g-3 mb-3">
+  <div class="col-6 col-lg-3"><div class="card kpi h-100">
+    <div class="etiqueta">En tránsito</div>
+    <div class="valor">{{ kpis.guias_en_transito }}</div>
+    <div class="detalle">{{ kpis.volumen_en_transito|floatformat:"1g" }} m³ en camino a patio</div>
+  </div></div>
+  <div class="col-6 col-lg-3"><div class="card kpi h-100">
+    <div class="etiqueta">Recibido en patio</div>
+    <div class="valor">{{ kpis.volumen_recibido|floatformat:"0g" }} m³</div>
+    <div class="detalle">{{ kpis.recepciones }} recepciones</div>
+  </div></div>
+  <div class="col-6 col-lg-3"><div class="card kpi h-100">
+    <div class="etiqueta">Merma de viaje</div>
+    <div class="valor">{{ kpis.merma_pct|floatformat:2 }}%</div>
+    <div class="detalle">{{ kpis.merma_m3|floatformat:"1g" }} m³ · {{ kpis.recepciones_en_revision }} en revisión (&gt;{{ tolerancia }}%)</div>
+  </div></div>
+  <div class="col-6 col-lg-3"><div class="card kpi h-100">
+    <div class="etiqueta">Rendimiento aserradero</div>
+    <div class="valor">{{ kpis.rendimiento_pct|floatformat:1 }}%</div>
+    <div class="detalle">{{ kpis.ordenes_produccion }} órdenes de producción</div>
+  </div></div>
+</div>
+
+<div class="row g-3 mb-4">
+  <div class="col-6 col-lg-3"><div class="card kpi h-100">
+    <div class="etiqueta">Paquetes QR activos</div>
+    <div class="valor">{{ kpis.paquetes_activos }}</div>
+    <div class="detalle">{{ kpis.paquetes_m3|floatformat:"1g" }} m³ en bodega/proceso · <a href="{% url 'paquetes_lista' %}">Ver QR</a></div>
+  </div></div>
+  <div class="col-6 col-lg-3"><div class="card kpi h-100">
+    <div class="etiqueta">Compras pendientes</div>
+    <div class="valor">{{ kpis.compras_pendientes }}</div>
+    <div class="detalle">Solicitudes por aprobar · <a href="{% url 'compras_lista' %}">Gestionar</a></div>
+  </div></div>
+  <div class="col-6 col-lg-3"><div class="card kpi h-100">
+    <div class="etiqueta">Ventas despachadas</div>
+    <div class="valor">{{ kpis.ventas_despachadas }}</div>
+    <div class="detalle">{{ kpis.ventas_volumen_m3|floatformat:"1g" }} m³ · ${{ kpis.ventas_monto_clp }} CLP</div>
+  </div></div>
+  <div class="col-6 col-lg-3"><div class="card kpi h-100">
+    <div class="etiqueta">Stock insumos planta</div>
+    <div class="valor">{{ kpis.stock_insumo|floatformat:"1g" }}</div>
+    <div class="detalle">Unid/L químicos y repuestos</div>
+  </div></div>
+</div>
+
+<div class="row g-4 mb-4">
+  <div class="col-12 col-xl-7">
+    <div class="card h-100">
+      <div class="card-header">Volumen enviado desde faena vs. recibido en patio (m³ por día)</div>
+      <div class="card-body"><div class="grafico"><canvas id="g-serie" role="img" aria-label="Gráfico de líneas: volumen enviado y recibido por día"></canvas></div></div>
+    </div>
+  </div>
+  <div class="col-12 col-xl-5">
+    <div class="card h-100">
+      <div class="card-header">Merma por faena de origen (%)</div>
+      <div class="card-body"><div class="grafico"><canvas id="g-faena" role="img" aria-label="Gráfico de barras: porcentaje de merma por faena"></canvas></div></div>
+    </div>
+  </div>
+</div>
+
+<div class="row g-4">
+  <div class="col-12 col-xl-5">
+    <div class="card h-100">
+      <div class="card-header">Stock actual por producto (m³)</div>
+      <div class="card-body"><div class="grafico"><canvas id="g-stock" role="img" aria-label="Gráfico de barras: stock actual por producto"></canvas></div></div>
+    </div>
+  </div>
+  <div class="col-12 col-xl-7">
+    <div class="card h-100">
+      <div class="card-header">Recepciones con discrepancia sobre tolerancia</div>
+      <div class="table-responsive">
+        <table class="table align-middle mb-0">
+          <thead><tr><th>Guía</th><th>Faena</th><th class="num">Enviado</th><th class="num">Recibido</th><th class="num">Dif.</th></tr></thead>
+          <tbody>
+          {% for g in en_revision %}
+            <tr>
+              <td><a class="fw-semibold" href="{% url 'guia_detalle' g.pk %}">{{ g.numero }}</a><div class="small text-secondary">{{ g.recepcion.fecha|date:"d-m H:i" }}</div></td>
+              <td>{{ g.faena }}</td>
+              <td class="num">{{ g.volumen_enviado|floatformat:"3g" }}</td>
+              <td class="num">{{ g.recepcion.volumen_recibido|floatformat:"3g" }}</td>
+              <td class="num"><span class="badge badge-revision">{{ g.recepcion.porcentaje_discrepancia|floatformat:2 }}%</span></td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="5" class="text-center text-secondary py-4">Sin discrepancias fuera de tolerancia.</td></tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+{{ datos|json_script:"datos-dashboard" }}
+{{ tolerancia|stringformat:"s"|json_script:"tolerancia" }}
+{% endblock %}
+
+{% block scripts %}
+<script src="{% static 'vendor/chart.umd.js' %}"></script>
+<script src="{% static 'js/dashboard.js' %}"></script>
+{% endblock %}

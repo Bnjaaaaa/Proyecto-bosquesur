@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block titulo %}Acceso denegado{% endblock %}
+{% block contenido %}
+<div class="text-center py-5">
+  <h1 class="titulo-pagina mb-2">Acceso denegado</h1>
+  <p class="subtitulo mb-4">Su rol no tiene permiso para ver esta página. El intento quedó registrado en la bitácora de auditoría.</p>
+  <a class="btn btn-primary" href="{% url 'inicio' %}">Volver al inicio</a>
+</div>
+{% endblock %}

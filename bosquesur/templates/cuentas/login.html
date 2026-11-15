@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block titulo %}Iniciar sesión{% endblock %}
+{% block cuerpo %}
+<div class="login-fondo min-vh-100 d-flex align-items-center justify-content-center p-3">
+  <div class="card login-card w-100 shadow-lg border-0">
+    <div class="card-body p-4 p-md-5">
+      <h1 class="h4 fw-bold mb-1">BosqueSur Maderas</h1>
+      <p class="text-secondary mb-4">Sistema Integrado de Gestión Forestal y Maderera</p>
+      {% if form.errors %}
+      <div class="alert alert-danger py-2" role="alert">Usuario o contraseña incorrectos.</div>
+      {% endif %}
+      <form method="post" novalidate>
+        {% csrf_token %}
+        <input type="hidden" name="next" value="{{ next }}">
+        <div class="mb-3">
+          <label class="form-label fw-semibold" for="id_username">Usuario</label>
+          <input class="form-control form-control-lg" id="id_username" name="username" autocomplete="username" autocapitalize="none" required autofocus value="{{ form.username.value|default:'' }}">
+        </div>
+        <div class="mb-4">
+          <label class="form-label fw-semibold" for="id_password">Contraseña</label>
+          <input class="form-control form-control-lg" id="id_password" name="password" type="password" autocomplete="current-password" required>
+        </div>
+        <button class="btn btn-primary btn-lg w-100">Ingresar</button>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

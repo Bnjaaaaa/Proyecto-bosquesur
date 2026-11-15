@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% block titulo %}Ventas y despachos comerciales{% endblock %}
+{% block contenido %}
+<div class="d-flex flex-wrap justify-content-between align-items-end gap-3 mb-4">
+  <div>
+    <h1 class="titulo-pagina">Pedidos de venta y despacho comercial</h1>
+    <p class="subtitulo">Reserva de paquetes QR disponibles, rebaja de inventario al despachar y emisión de documento comercial interno simulado (sin SII).</p>
+  </div>
+  {% if puede_crear %}<a class="btn btn-primary btn-lg-movil" href="{% url 'venta_nueva' %}">Nuevo pedido de venta</a>{% endif %}
+</div>
+
+<form class="row g-2 mb-3" method="get">
+  <div class="col-12 col-md-5"><input class="form-control" name="q" value="{{ q }}" placeholder="Buscar por N° pedido, documento interno o cliente" aria-label="Buscar"></div>
+  <div class="col-8 col-md-4">
+    <select class="form-select" name="estado" aria-label="Estado">
+      <option value="">Todos los estados</option>
+      {% for valor, texto in estados %}<option value="{{ valor }}" {% if valor == estado %}selected{% endif %}>{{ texto }}</option>{% endfor %}
+    </select>
+  </div>
+  <div class="col-4 col-md-3"><button class="btn btn-outline-primary w-100">Filtrar</button></div>
+</form>
+
+<div class="card">
+  <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0">
+      <thead>
+        <tr>
+          <th>N° pedido</th>
+          <th>Fecha</th>
+          <th>Cliente</th>
+          <th>Patio</th>
+          <th class="num">Volumen</th>
+          <th class="num">Monto neto ($ CLP)</th>
+          <th>Doc. interno (Sin SII)</th>
+          <th>Estado</th>
+        </tr>
+      </thead>
+      <tbody>
+      {% for v in pagina %}
+        <tr>
+          <td>
+            <a class="fw-semibold text-decoration-none" href="{% url 'venta_detalle' v.pk %}">{{ v.numero }}</a>
+            <div class="small text-secondary">{{ v.creado_por.nombre_visible }}</div>
+          </td>
+          <td class="text-nowrap">{{ v.fecha_creacion|date:"d-m-Y H:i" }}</td>
+          <td>{{ v.cliente.razon_social }}<div class="small text-secondary">{{ v.cliente.rut }}</div></td>
+          <td>{{ v.patio_despacho.nombre }}</td>
+          <td class="num">{{ v.volumen_total_m3|floatformat:"3g" }} m³</td>
+          <td class="num fw-semibold">${{ v.monto_neto_clp }}</td>
+          <td>
+            {% if v.documento_interno %}
+              <a class="hash text-decoration-none" href="{% url 'venta_documento' v.pk %}">{{ v.documento_interno }}</a>
+            {% else %}
+              <span class="text-secondary">—</span>
+            {% endif %}
+          </td>
+          <td>
+            <span class="badge badge-estado {% if v.estado == 'DESPACHADO' %}badge-ok{% elif v.estado == 'ANULADO' %}badge-revision{% else %}badge-transito{% endif %}">
+              {{ v.get_estado_display }}
+            </span>
+          </td>
+        </tr>
+      {% empty %}
+        <tr><td colspan="8" class="text-center text-secondary py-4">No hay pedidos de venta que coincidan con el filtro.</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% include "includes/paginacion.html" %}
+{% endblock %}
