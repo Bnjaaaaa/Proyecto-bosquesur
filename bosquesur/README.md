@@ -116,7 +116,7 @@ templates/         Interfaz Bootstrap 5 + Chart.js 4 locales + simulador /app-mo
 ## 6. Pruebas Automatizadas y Verificación de Auditoría
 
 ```bash
-python manage.py test --verbosity=2      # 37 pruebas automatizadas (operaciones, api, auditoria)
+python manage.py test --verbosity=2      # 38 pruebas automatizadas (operaciones, api, auditoria)
 python manage.py verificar_auditoria     # Verifica la cadena completa SHA-256 (196 registros tras cargar_demo)
 ```
 

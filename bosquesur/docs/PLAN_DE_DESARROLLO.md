@@ -63,7 +63,7 @@ Materializar un sistema completamente integrado web + API REST JWT + cliente mó
 
 ## 5. Evidencia de Verificación
 
-- `python manage.py test --verbosity=2`: **37 pruebas aprobadas** (trazabilidad completa ES3, consistencia ACID y rollback por falta de stock, RBAC web/API con `ACCESO_DENEGADO`, autenticación JWT, resolución gerencial, anulación de ventas y detección de alteraciones en bitácora SHA-256).
+- `python manage.py test --verbosity=2`: **38 pruebas aprobadas** (trazabilidad completa ES3, consistencia ACID y rollback por falta de stock, RBAC web/API con `ACCESO_DENEGADO`, autenticación JWT, resolución gerencial, anulación de ventas y detección de alteraciones en bitácora SHA-256).
 - `python manage.py cargar_demo`: genera **19 lotes de cosecha, 53 guías, 49 recepciones, 9 órdenes de producción, 18 paquetes QR, 4 órdenes de compra y 3 pedidos de venta**.
 - `python manage.py verificar_auditoria`: verifica **196 registros íntegros** en la cadena criptográfica SHA-256.
 - **Flutter (`bosquesur_mobile/`)**: plataformas `android`, `windows` y `web` generadas; `flutter analyze` con **0 problemas**, `flutter test` con **3/3 pruebas aprobadas** (incluyendo renovación JWT ante HTTP 401) y `flutter build web` compilado sin errores. (No se ejecutó prueba en vivo sobre dispositivo Android físico ni emulador por ausencia de dispositivo conectado).

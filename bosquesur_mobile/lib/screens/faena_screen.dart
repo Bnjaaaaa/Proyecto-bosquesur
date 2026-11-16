@@ -43,7 +43,13 @@ class _FaenaScreenState extends State<FaenaScreen> {
         _api.getProductos(),
         _api.getLotesCosecha(),
       ]);
-      final faenas = results[0];
+      var faenas = results[0];
+      // Un usuario FAENA solo puede operar en su predio asignado: se muestra solo ese.
+      final faenaAsignada = _api.usuarioActual?['faena_id'] as int?;
+      if (faenaAsignada != null) {
+        final propias = faenas.where((f) => f['id'] == faenaAsignada).toList();
+        if (propias.isNotEmpty) faenas = propias;
+      }
       final patios = results[1];
       final productos = results[2].where((p) => p['tipo'] == 'ROLLIZO').toList();
       final lotes = results[3];

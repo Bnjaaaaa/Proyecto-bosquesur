@@ -47,10 +47,12 @@ class TokenConRolSerializer(TokenObtainPairSerializer):
 class UsuarioSerializer(serializers.ModelSerializer):
     faena = serializers.StringRelatedField()
     patio = serializers.StringRelatedField()
+    faena_id = serializers.IntegerField(read_only=True, allow_null=True)
+    patio_id = serializers.IntegerField(read_only=True, allow_null=True)
 
     class Meta:
         model = Usuario
-        fields = ["id", "username", "first_name", "last_name", "rol", "faena", "patio"]
+        fields = ["id", "username", "first_name", "last_name", "rol", "faena", "faena_id", "patio", "patio_id"]
 
 
 class ProveedorSerializer(serializers.ModelSerializer):

@@ -50,6 +50,13 @@ class ApiJwtTests(APITestCase):
         respuesta = self.client.post("/api/token/", {"username": "faena", "password": "mala"}, format="json")
         self.assertEqual(respuesta.status_code, 401)
 
+    def test_login_devuelve_ids_de_faena_y_patio_asignados(self):
+        r = self.client.post("/api/token/", {"username": "faena", "password": "Clave-Segura-1"}, format="json")
+        self.assertEqual(r.data["usuario"]["faena_id"], self.faena.pk)
+        self.assertIsNone(r.data["usuario"]["patio_id"])
+        r = self.client.post("/api/token/", {"username": "patio", "password": "Clave-Segura-1"}, format="json")
+        self.assertEqual(r.data["usuario"]["patio_id"], self.patio.pk)
+
     def test_flujo_movil_completo_cosecha_guia_recepcion_qr_y_trazabilidad(self):
         # 1. Encargado de faena registra cosecha y emite guía asociada
         self.login("faena")

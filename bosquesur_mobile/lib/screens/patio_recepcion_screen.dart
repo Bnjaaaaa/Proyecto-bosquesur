@@ -41,50 +41,22 @@ class _PatioRecepcionScreenState extends State<PatioRecepcionScreen> {
   }
 
   Future<void> _abrirDialogoRecepcion(Map<String, dynamic> guia) async {
-    final volCtrl = TextEditingController(text: guia['volumen_enviado'].toString());
-    final obsCtrl = TextEditingController();
-    final confirmado = await showDialog<bool>(
+    final datos = await showDialog<({String volumen, String observacion})>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text('Recepcionar ${guia['numero']}'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text('Origen: ${guia['faena_nombre']} · Camión ${guia['patente_camion']}'),
-            const SizedBox(height: 12),
-            TextField(
-              controller: volCtrl,
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              decoration: const InputDecoration(labelText: 'Volumen recibido en patio (m³)', border: OutlineInputBorder()),
-            ),
-            const SizedBox(height: 10),
-            TextField(
-              controller: obsCtrl,
-              decoration: const InputDecoration(labelText: 'Observación', border: OutlineInputBorder()),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancelar')),
-          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Confirmar')),
-        ],
-      ),
+      builder: (ctx) => _DialogoRecepcion(guia: guia),
     );
-    if (confirmado == true) {
-      try {
-        await _api.recepcionarGuia(
-          guiaId: guia['id'] as int,
-          volumenRecibido: volCtrl.text.trim(),
-          observacion: obsCtrl.text.trim(),
-        );
-        _notificar('Guía ${guia['numero']} recepcionada en inventario.');
-        await _cargarGuias();
-      } catch (e) {
-        _notificar(e.toString(), esError: true);
-      }
+    if (datos == null) return;
+    try {
+      await _api.recepcionarGuia(
+        guiaId: guia['id'] as int,
+        volumenRecibido: datos.volumen,
+        observacion: datos.observacion,
+      );
+      _notificar('Guía ${guia['numero']} recepcionada en inventario.');
+      await _cargarGuias();
+    } catch (e) {
+      _notificar(e.toString(), esError: true);
     }
-    volCtrl.dispose();
-    obsCtrl.dispose();
   }
 
   @override
@@ -122,6 +94,65 @@ class _PatioRecepcionScreenState extends State<PatioRecepcionScreen> {
                 );
               },
             ),
+    );
+  }
+}
+
+
+/// Diálogo con sus propios controladores: se liberan en dispose(), cuando la
+/// animación de cierre ya terminó (evita usar un controlador ya liberado).
+class _DialogoRecepcion extends StatefulWidget {
+  const _DialogoRecepcion({required this.guia});
+  final Map<String, dynamic> guia;
+
+  @override
+  State<_DialogoRecepcion> createState() => _DialogoRecepcionState();
+}
+
+class _DialogoRecepcionState extends State<_DialogoRecepcion> {
+  late final TextEditingController _volCtrl =
+      TextEditingController(text: widget.guia['volumen_enviado'].toString());
+  final _obsCtrl = TextEditingController();
+
+  @override
+  void dispose() {
+    _volCtrl.dispose();
+    _obsCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final guia = widget.guia;
+    return AlertDialog(
+      title: Text('Recepcionar ${guia['numero']}'),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text('Origen: ${guia['faena_nombre']} · Camión ${guia['patente_camion']}'),
+          const SizedBox(height: 12),
+          TextField(
+            controller: _volCtrl,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            decoration: const InputDecoration(labelText: 'Volumen recibido en patio (m³)', border: OutlineInputBorder()),
+          ),
+          const SizedBox(height: 10),
+          TextField(
+            controller: _obsCtrl,
+            decoration: const InputDecoration(labelText: 'Observación', border: OutlineInputBorder()),
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancelar')),
+        FilledButton(
+          onPressed: () => Navigator.pop(
+            context,
+            (volumen: _volCtrl.text.trim(), observacion: _obsCtrl.text.trim()),
+          ),
+          child: const Text('Confirmar'),
+        ),
+      ],
     );
   }
 }

@@ -175,6 +175,7 @@ class _BodegaQrScreenState extends State<BodegaQrScreen> {
                   DropdownButtonFormField<String>(
                     key: ValueKey('proceso_$_proceso'),
                     initialValue: _proceso,
+                    isExpanded: true,
                     decoration: const InputDecoration(labelText: 'Proceso posterior', border: OutlineInputBorder()),
                     items: const [
                       DropdownMenuItem(value: 'SECADO', child: Text('Secado en cámara')),
@@ -188,11 +189,12 @@ class _BodegaQrScreenState extends State<BodegaQrScreen> {
                   DropdownButtonFormField<int>(
                     key: ValueKey('ub_$_ubicacionDestinoId'),
                     initialValue: _ubicacionDestinoId,
+                    isExpanded: true,
                     decoration: const InputDecoration(labelText: 'Ubicación de destino', border: OutlineInputBorder()),
                     items: _ubicaciones
                         .map((u) => DropdownMenuItem<int>(
                               value: u['id'] as int,
-                              child: Text('${u['codigo']} · ${u['nombre']}'),
+                              child: Text('${u['codigo']} · ${u['nombre']}', overflow: TextOverflow.ellipsis),
                             ))
                         .toList(),
                     onChanged: (v) => setState(() => _ubicacionDestinoId = v),
@@ -204,11 +206,29 @@ class _BodegaQrScreenState extends State<BodegaQrScreen> {
                     decoration: const InputDecoration(labelText: 'Merma de proceso (m³)', border: OutlineInputBorder()),
                   ),
                   const SizedBox(height: 12),
+                  if (_paquete!['estado'] == 'DESPACHADO')
+                    const Padding(
+                      padding: EdgeInsets.only(bottom: 8),
+                      child: Text(
+                        'Paquete despachado: ya no admite procesos ni traslados.',
+                        style: TextStyle(fontStyle: FontStyle.italic),
+                      ),
+                    ),
                   Row(
                     children: [
-                      Expanded(child: FilledButton(onPressed: _aplicarProceso, child: const Text('Aplicar Proceso'))),
+                      Expanded(
+                        child: FilledButton(
+                          onPressed: _paquete!['estado'] == 'DESPACHADO' ? null : _aplicarProceso,
+                          child: const Text('Aplicar Proceso'),
+                        ),
+                      ),
                       const SizedBox(width: 8),
-                      Expanded(child: OutlinedButton(onPressed: _moverUbicacion, child: const Text('Solo Mover'))),
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: _paquete!['estado'] == 'DESPACHADO' ? null : _moverUbicacion,
+                          child: const Text('Solo Mover'),
+                        ),
+                      ),
                     ],
                   ),
                 ],
