@@ -54,6 +54,22 @@
       </div>
     </div>
     {% endif %}
+
+    {% if puede_anular %}
+    <div class="card mb-4 border-danger">
+      <div class="card-header bg-danger-subtle">Anular pedido de venta</div>
+      <div class="card-body">
+        <form method="post" action="{% url 'venta_anular' pedido.pk %}">
+          {% csrf_token %}
+          <div class="mb-3">
+            <label class="form-label fw-semibold" for="motivo_anulacion">Motivo de anulación</label>
+            <input class="form-control" id="motivo_anulacion" name="motivo" type="text" placeholder="Ej.: Cliente desistió / error de asignación" required>
+          </div>
+          <button class="btn btn-outline-danger w-100">Anular pedido y liberar paquetes</button>
+        </form>
+      </div>
+    </div>
+    {% endif %}
   </div>
 
   <div class="col-12 col-lg-7">

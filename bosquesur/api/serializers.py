@@ -118,6 +118,7 @@ class LoteCosechaSerializer(serializers.ModelSerializer):
 
 class RecepcionSerializer(serializers.ModelSerializer):
     recibida_por = serializers.StringRelatedField()
+    revisada_por = serializers.StringRelatedField()
 
     class Meta:
         model = Recepcion
@@ -129,6 +130,9 @@ class RecepcionSerializer(serializers.ModelSerializer):
             "observacion",
             "recibida_por",
             "fecha",
+            "revisada_por",
+            "fecha_revision",
+            "resolucion",
         ]
 
 
@@ -169,6 +173,11 @@ class GuiaDespachoSerializer(serializers.ModelSerializer):
 
 class RecepcionEntradaSerializer(serializers.Serializer):
     volumen_recibido = serializers.DecimalField(max_digits=10, decimal_places=3, min_value=Decimal("0.001"))
+    observacion = serializers.CharField(required=False, allow_blank=True, default="")
+
+
+class ResolverDiscrepanciaEntradaSerializer(serializers.Serializer):
+    aceptar = serializers.BooleanField(default=True)
     observacion = serializers.CharField(required=False, allow_blank=True, default="")
 
 
@@ -387,6 +396,10 @@ class DespacharVentaEntradaSerializer(serializers.Serializer):
 
     def validate_patente_camion(self, valor):
         return _limpiar_patente(valor)
+
+
+class AnularVentaEntradaSerializer(serializers.Serializer):
+    motivo = serializers.CharField(required=False, allow_blank=True, default="")
 
 
 class InventarioSerializer(serializers.ModelSerializer):

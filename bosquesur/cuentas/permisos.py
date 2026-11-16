@@ -15,6 +15,7 @@ PERMISOS = {
     "ver_guias": (Rol.GERENTE, Rol.ADMINISTRATIVO, Rol.FAENA, Rol.PATIO),
     "emitir_guia": (Rol.FAENA, Rol.ADMINISTRATIVO),
     "recepcionar": (Rol.PATIO, Rol.ADMINISTRATIVO),
+    "resolver_discrepancia": (Rol.GERENTE,),
     "ver_inventario": (Rol.GERENTE, Rol.ADMINISTRATIVO, Rol.PATIO),
     "ver_produccion": (Rol.GERENTE, Rol.ADMINISTRATIVO, Rol.PATIO),
     "registrar_produccion": (Rol.ADMINISTRATIVO, Rol.PATIO),

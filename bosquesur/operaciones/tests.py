@@ -480,6 +480,121 @@ class FlujosCompletosES3Tests(Base):
                 volumen_m3=D("1.000"),
             )
 
+    @override_settings(TOLERANCIA_DISCREPANCIA_PCT=3.0)
+    def test_gerente_resuelve_discrepancia_sin_alterar_stock(self):
+        guia = self.emitir("30.000")
+        recepcion = servicios.recepcionar_guia(
+            usuario=self.operador, guia_id=guia.pk, volumen_recibido=D("25.000")
+        )
+        self.assertTrue(recepcion.requiere_revision)
+        self.assertEqual(self.stock(self.rollizo), D("25.000"))
+
+        with self.assertRaises(servicios.ErrorNegocio):
+            servicios.resolver_discrepancia(self.administrativo, recepcion.pk, True, "Intento no autorizado")
+        with self.assertRaises(servicios.ErrorNegocio):
+            servicios.resolver_discrepancia(self.gerente, recepcion.pk, False, "")
+
+        # Vista web restringida a GERENTE
+        self.client.force_login(self.administrativo)
+        self.assertEqual(
+            self.client.post(reverse("guia_resolver_discrepancia", args=[guia.pk]), {"decision": "aceptar"}).status_code,
+            403,
+        )
+
+        # Gerente resuelve desde la web
+        self.client.force_login(self.gerente)
+        resp = self.client.post(
+            reverse("guia_resolver_discrepancia", args=[guia.pk]),
+            {"decision": "aceptar", "observacion": "Diferencia validada por humedad"},
+        )
+        self.assertRedirects(resp, reverse("guia_detalle", args=[guia.pk]))
+        recepcion.refresh_from_db()
+        self.assertFalse(recepcion.requiere_revision)
+        self.assertEqual(recepcion.revisada_por, self.gerente)
+        self.assertIsNotNone(recepcion.fecha_revision)
+        self.assertIn("ACEPTADA", recepcion.resolucion)
+        self.assertEqual(self.stock(self.rollizo), D("25.000"))
+        self.assertTrue(
+            RegistroAuditoria.objects.filter(accion="RESOLVER_DISCREPANCIA", entidad_id=guia.numero).exists()
+        )
+
+        with self.assertRaises(servicios.ErrorNegocio):
+            servicios.resolver_discrepancia(self.gerente, recepcion.pk, True, "Ya resuelta")
+
+    def test_anular_pedido_venta_libera_paquetes_y_rechaza_despachado(self):
+        guia = self.emitir("30.000")
+        servicios.recepcionar_guia(usuario=self.operador, guia_id=guia.pk, volumen_recibido=D("30.000"))
+        orden = servicios.registrar_produccion(
+            usuario=self.operador,
+            patio=self.patio,
+            producto_entrada=self.rollizo,
+            volumen_entrada=D("20.000"),
+            producto_salida=self.aserrado,
+            volumen_salida=D("10.000"),
+        )
+        pkt_verde = servicios.crear_paquete(
+            usuario=self.operador,
+            orden_produccion=orden,
+            ubicacion=self.ub_bodega,
+            volumen_m3=D("4.000"),
+        )
+        pkt_proc = servicios.crear_paquete(
+            usuario=self.operador,
+            orden_produccion=orden,
+            ubicacion=self.ub_bodega,
+            volumen_m3=D("4.000"),
+        )
+        pkt_proc = servicios.aplicar_proceso_paquete(
+            usuario=self.operador,
+            paquete_id=pkt_proc.pk,
+            proceso=Paquete.Proceso.SECADO,
+        )
+        pedido = servicios.crear_pedido_venta(
+            usuario=self.administrativo,
+            cliente=self.cliente,
+            patio_despacho=self.patio,
+            paquetes_ids=[pkt_verde.pk, pkt_proc.pk],
+        )
+
+        self.client.force_login(self.administrativo)
+        resp = self.client.post(
+            reverse("venta_anular", args=[pedido.pk]),
+            {"motivo": "Cliente reprogramó entrega"},
+        )
+        self.assertRedirects(resp, reverse("venta_detalle", args=[pedido.pk]))
+
+        pedido.refresh_from_db()
+        pkt_verde.refresh_from_db()
+        pkt_proc.refresh_from_db()
+        self.assertEqual(pedido.estado, PedidoVenta.Estado.ANULADO)
+        self.assertEqual(pkt_verde.estado, Paquete.Estado.ELABORADO)
+        self.assertEqual(pkt_proc.estado, Paquete.Estado.PROCESADO)
+        self.assertEqual(self.stock(self.aserrado), D("10.000"))
+        self.assertTrue(
+            HistorialPaquete.objects.filter(
+                paquete=pkt_verde, tipo_evento=HistorialPaquete.TipoEvento.LIBERACION
+            ).exists()
+        )
+        self.assertTrue(
+            RegistroAuditoria.objects.filter(accion="ANULAR_VENTA", entidad_id=pedido.numero).exists()
+        )
+
+        # Se pueden volver a vender y luego no se puede anular un pedido despachado
+        pedido2 = servicios.crear_pedido_venta(
+            usuario=self.administrativo,
+            cliente=self.cliente,
+            patio_despacho=self.patio,
+            paquetes_ids=[pkt_verde.pk],
+        )
+        servicios.despachar_pedido_venta(
+            usuario=self.operador,
+            pedido_id=pedido2.pk,
+            patente_camion="ABCD12",
+            conductor="Pedro",
+        )
+        with self.assertRaises(servicios.ErrorNegocio):
+            servicios.anular_pedido_venta(self.administrativo, pedido2.pk, "Tarde")
+
 
 class SeguridadWebTests(Base):
     """Criterio: RBAC restringe vistas administrativas frente a operativas y expone vistas ES3."""

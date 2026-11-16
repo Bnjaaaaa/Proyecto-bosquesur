@@ -91,7 +91,7 @@
       <div class="card-header">Recepciones con discrepancia sobre tolerancia</div>
       <div class="table-responsive">
         <table class="table align-middle mb-0">
-          <thead><tr><th>Guía</th><th>Faena</th><th class="num">Enviado</th><th class="num">Recibido</th><th class="num">Dif.</th></tr></thead>
+          <thead><tr><th>Guía</th><th>Faena</th><th class="num">Enviado</th><th class="num">Recibido</th><th class="num">Dif.</th>{% if puede_resolver_discrepancia %}<th></th>{% endif %}</tr></thead>
           <tbody>
           {% for g in en_revision %}
             <tr>
@@ -100,9 +100,19 @@
               <td class="num">{{ g.volumen_enviado|floatformat:"3g" }}</td>
               <td class="num">{{ g.recepcion.volumen_recibido|floatformat:"3g" }}</td>
               <td class="num"><span class="badge badge-revision">{{ g.recepcion.porcentaje_discrepancia|floatformat:2 }}%</span></td>
+              {% if puede_resolver_discrepancia %}
+              <td class="text-end text-nowrap">
+                <form method="post" action="{% url 'guia_resolver_discrepancia' g.pk %}" class="d-inline">
+                  {% csrf_token %}
+                  <input type="hidden" name="decision" value="aceptar">
+                  <input type="hidden" name="origen" value="dashboard">
+                  <button class="btn btn-sm btn-outline-primary">Validar</button>
+                </form>
+              </td>
+              {% endif %}
             </tr>
           {% empty %}
-            <tr><td colspan="5" class="text-center text-secondary py-4">Sin discrepancias fuera de tolerancia.</td></tr>
+            <tr><td colspan="{% if puede_resolver_discrepancia %}6{% else %}5{% endif %}" class="text-center text-secondary py-4">Sin discrepancias fuera de tolerancia.</td></tr>
           {% endfor %}
           </tbody>
         </table>

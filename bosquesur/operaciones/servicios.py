@@ -234,6 +234,49 @@ def recepcionar_guia(*, usuario, guia_id, volumen_recibido, observacion="", requ
 
 
 @transaction.atomic
+def resolver_discrepancia(usuario, recepcion_id, aceptar=True, observacion="", *, request=None):
+    """Validación gerencial de una recepción con discrepancia fuera de tolerancia (no altera stock)."""
+    if not usuario.tiene_rol(Usuario.Rol.GERENTE):
+        raise ErrorNegocio("Solo la Gerencia está autorizada para resolver discrepancias de recepción.")
+    try:
+        recepcion = Recepcion.objects.select_for_update().select_related("guia").get(pk=recepcion_id)
+    except Recepcion.DoesNotExist as exc:
+        raise ErrorNegocio("La recepción indicada no existe.") from exc
+
+    if not recepcion.requiere_revision:
+        raise ErrorNegocio(
+            f"La recepción de {recepcion.guia.numero} no tiene discrepancia pendiente de revisión."
+        )
+
+    obs_limpia = (observacion or "").strip()
+    if not aceptar and not obs_limpia:
+        raise ErrorNegocio("Debe indicar una observación al rechazar la discrepancia.")
+
+    decision = "ACEPTADA" if aceptar else "RECHAZADA"
+    recepcion.requiere_revision = False
+    recepcion.revisada_por = usuario
+    recepcion.fecha_revision = timezone.now()
+    recepcion.resolucion = f"{decision}: {obs_limpia}" if obs_limpia else decision
+    recepcion.save(update_fields=["requiere_revision", "revisada_por", "fecha_revision", "resolucion"])
+
+    registrar(
+        Accion.RESOLVER_DISCREPANCIA,
+        f"Discrepancia de {recepcion.guia.numero} {decision} por {usuario.nombre_visible}",
+        usuario=usuario,
+        entidad="GuiaDespacho",
+        entidad_id=recepcion.guia.numero,
+        datos={
+            "recepcion_id": recepcion.pk,
+            "decision": decision,
+            "discrepancia_m3": recepcion.discrepancia,
+            "observacion": obs_limpia,
+        },
+        request=request,
+    )
+    return recepcion
+
+
+@transaction.atomic
 def registrar_produccion(
     *,
     usuario,
@@ -841,6 +884,61 @@ def despachar_pedido_venta(*, usuario, pedido_id, patente_camion, conductor, obs
             "conductor": conductor,
             "paquetes": [p.codigo_qr for p in paquetes],
         },
+        request=request,
+    )
+    return pedido
+
+
+@transaction.atomic
+def anular_pedido_venta(usuario, pedido_id, motivo="", *, request=None):
+    """Anula un pedido en PREPARACION y libera sus paquetes reservados sin alterar stock."""
+    try:
+        pedido = PedidoVenta.objects.select_for_update().select_related("cliente", "patio_despacho").get(pk=pedido_id)
+    except PedidoVenta.DoesNotExist as exc:
+        raise ErrorNegocio("El pedido de venta no existe.") from exc
+
+    if pedido.estado != PedidoVenta.Estado.PREPARACION:
+        raise ErrorNegocio(
+            f"Solo se pueden anular pedidos en preparación (estado actual: {pedido.get_estado_display()})."
+        )
+    _validar_patio_operador(
+        usuario,
+        pedido.patio_despacho_id,
+        f"El pedido {pedido.numero} corresponde a {pedido.patio_despacho.nombre}.",
+    )
+
+    paquetes = list(pedido.paquetes.select_for_update().select_related("ubicacion"))
+    motivo_limpio = (motivo or "").strip() or "Anulación administrativa"
+
+    pedido.estado = PedidoVenta.Estado.ANULADO
+    pedido.observacion = f"{pedido.observacion}\n[Anulación]: {motivo_limpio}".strip()
+    pedido.save(update_fields=["estado", "observacion"])
+
+    codigos = []
+    for p in paquetes:
+        p.estado = (
+            Paquete.Estado.PROCESADO
+            if p.proceso_actual != Paquete.Proceso.NINGUNO
+            else Paquete.Estado.ELABORADO
+        )
+        p.save(update_fields=["estado"])
+        codigos.append(p.codigo_qr)
+        HistorialPaquete.objects.create(
+            paquete=p,
+            tipo_evento=HistorialPaquete.TipoEvento.LIBERACION,
+            ubicacion_origen=p.ubicacion,
+            ubicacion_destino=p.ubicacion,
+            observacion=f"Liberado por anulación de {pedido.numero}: {motivo_limpio}",
+            usuario=usuario,
+        )
+
+    registrar(
+        Accion.ANULAR_VENTA,
+        f"Pedido {pedido.numero} anulado ({len(paquetes)} paquete(s) liberados): {motivo_limpio}",
+        usuario=usuario,
+        entidad="PedidoVenta",
+        entidad_id=pedido.numero,
+        datos={"motivo": motivo_limpio, "paquetes": codigos},
         request=request,
     )
     return pedido

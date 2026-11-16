@@ -123,6 +123,7 @@ def guia_nueva(request):
 @permiso_requerido("ver_guias")
 def guia_detalle(request, pk):
     guia = get_object_or_404(guias_visibles(request.user), pk=pk)
+    recepcion = getattr(guia, "recepcion", None)
     movimientos = guia.movimientos.select_related("producto", "patio", "usuario")
     eventos = RegistroAuditoria.objects.filter(entidad="GuiaDespacho", entidad_id=guia.numero).order_by("id")
     return render(
@@ -130,12 +131,46 @@ def guia_detalle(request, pk):
         "operaciones/guia_detalle.html",
         {
             "guia": guia,
-            "recepcion": getattr(guia, "recepcion", None),
+            "recepcion": recepcion,
             "movimientos": movimientos,
             "eventos": eventos,
             "puede_recepcionar": puede(request.user, "recepcionar") and guia.estado == GuiaDespacho.Estado.EMITIDA,
+            "puede_resolver_discrepancia": (
+                puede(request.user, "resolver_discrepancia") and bool(recepcion and recepcion.requiere_revision)
+            ),
         },
     )
+
+
+@permiso_requerido("resolver_discrepancia")
+def guia_resolver_discrepancia(request, pk):
+    if request.method != "POST":
+        return redirect("guia_detalle", pk=pk)
+    guia = get_object_or_404(guias_visibles(request.user), pk=pk)
+    recepcion = getattr(guia, "recepcion", None)
+    if recepcion is None:
+        messages.error(request, f"La guía {guia.numero} aún no tiene una recepción registrada.")
+        return redirect("guia_detalle", pk=pk)
+    aceptar = request.POST.get("decision", "aceptar") == "aceptar"
+    observacion = request.POST.get("observacion", "").strip()
+    try:
+        servicios.resolver_discrepancia(
+            usuario=request.user,
+            recepcion_id=recepcion.pk,
+            aceptar=aceptar,
+            observacion=observacion,
+            request=request,
+        )
+    except servicios.ErrorNegocio as error:
+        servicios.registrar_rechazo(
+            usuario=request.user, operacion=f"Resolución discrepancia {guia.numero}", motivo=str(error), request=request
+        )
+        messages.error(request, str(error))
+    else:
+        messages.success(request, f"Discrepancia de la guía {guia.numero} resuelta por Gerencia.")
+    if request.POST.get("origen") == "dashboard":
+        return redirect("dashboard")
+    return redirect("guia_detalle", pk=pk)
 
 
 # ------------------------------------------------------------------ Recepción
@@ -653,8 +688,33 @@ def venta_detalle(request, pk):
             "puede_despachar": (
                 puede(request.user, "despachar_venta") and pedido.estado == PedidoVenta.Estado.PREPARACION
             ),
+            "puede_anular": (
+                puede(request.user, "gestionar_ventas") and pedido.estado == PedidoVenta.Estado.PREPARACION
+            ),
         },
     )
+
+
+@permiso_requerido("gestionar_ventas")
+def venta_anular(request, pk):
+    if request.method != "POST":
+        return redirect("venta_detalle", pk=pk)
+    motivo = request.POST.get("motivo", "").strip()
+    try:
+        pedido = servicios.anular_pedido_venta(
+            usuario=request.user,
+            pedido_id=pk,
+            motivo=motivo,
+            request=request,
+        )
+    except servicios.ErrorNegocio as error:
+        servicios.registrar_rechazo(
+            usuario=request.user, operacion="Anulación de venta", motivo=str(error), request=request
+        )
+        messages.error(request, str(error))
+    else:
+        messages.success(request, f"Pedido {pedido.numero} anulado y paquetes liberados.")
+    return redirect("venta_detalle", pk=pk)
 
 
 @permiso_requerido("despachar_venta")
@@ -820,6 +880,7 @@ def dashboard(request):
             "dias": dias,
             "en_revision": en_revision,
             "tolerancia": servicios.tolerancia_discrepancia(),
+            "puede_resolver_discrepancia": puede(request.user, "resolver_discrepancia"),
         },
     )
 

@@ -185,7 +185,11 @@ def trazabilidad_paquete(paquete):
     faena = guia.faena if guia else None
     proveedor = faena.proveedor if faena else None
     recepcion = getattr(guia, "recepcion", None) if guia else None
-    pedido = paquete.pedidos_venta.select_related("cliente", "patio_despacho", "despachado_por").first()
+    pedido = (
+        paquete.pedidos_venta.exclude(estado=PedidoVenta.Estado.ANULADO)
+        .select_related("cliente", "patio_despacho", "despachado_por")
+        .first()
+    )
     historial = list(
         paquete.historial.select_related("ubicacion_origen", "ubicacion_destino", "usuario").order_by("fecha", "id")
     )

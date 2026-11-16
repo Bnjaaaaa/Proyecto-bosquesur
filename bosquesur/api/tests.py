@@ -1,6 +1,7 @@
 """Pruebas de la API REST completa protegida con autenticación JWT."""
 from decimal import Decimal
 
+from django.test import override_settings
 from rest_framework.test import APITestCase
 
 from auditoria.models import RegistroAuditoria
@@ -233,3 +234,91 @@ class ApiJwtTests(APITestCase):
         integra, total, _ = verificar_cadena()
         self.assertTrue(integra)
         self.assertGreaterEqual(total, 1)
+
+    @override_settings(TOLERANCIA_DISCREPANCIA_PCT=3.0)
+    def test_api_resolver_discrepancia_y_anular_venta(self):
+        # Guía con discrepancia fuera de tolerancia
+        self.login("faena")
+        r_guia = self.client.post(
+            "/api/guias/",
+            {
+                "faena": self.faena.pk,
+                "patio_destino": self.patio.pk,
+                "producto": self.rollizo.pk,
+                "volumen_enviado": "20.000",
+                "patente_camion": "GTRS45",
+                "conductor": "Luis",
+            },
+            format="json",
+        )
+        guia_id = r_guia.data["id"]
+
+        self.login("patio")
+        self.client.post(f"/api/guias/{guia_id}/recepcionar/", {"volumen_recibido": "15.000"}, format="json")
+        self.assertEqual(
+            self.client.post(f"/api/guias/{guia_id}/resolver-discrepancia/", {"aceptar": True}, format="json").status_code,
+            403,
+        )
+
+        self.login("gerente")
+        r_res = self.client.post(
+            f"/api/guias/{guia_id}/resolver-discrepancia/",
+            {"aceptar": True, "observacion": "Aprobado por gerencia"},
+            format="json",
+        )
+        self.assertEqual(r_res.status_code, 200, r_res.content)
+        self.assertFalse(r_res.data["recepcion"]["requiere_revision"])
+        self.assertIn("ACEPTADA", r_res.data["recepcion"]["resolucion"])
+
+        # Orden de producción -> paquete -> pedido de venta -> anular vía API
+        self.login("patio")
+        r_ord = self.client.post(
+            "/api/ordenes-produccion/",
+            {
+                "patio": self.patio.pk,
+                "guia_origen": guia_id,
+                "producto_entrada": self.rollizo.pk,
+                "volumen_entrada": "10.000",
+                "producto_salida": self.aserrado.pk,
+                "volumen_salida": "5.000",
+            },
+            format="json",
+        )
+        r_pkt = self.client.post(
+            "/api/paquetes/",
+            {
+                "orden_produccion": r_ord.data["id"],
+                "ubicacion": self.ub1.pk,
+                "volumen_m3": "5.000",
+            },
+            format="json",
+        )
+        pkt_id = r_pkt.data["id"]
+
+        self.login("administrativo")
+        r_vta = self.client.post(
+            "/api/ventas/",
+            {
+                "cliente": self.cliente.pk,
+                "patio_despacho": self.patio.pk,
+                "paquetes": [pkt_id],
+            },
+            format="json",
+        )
+        vta_id = r_vta.data["id"]
+
+        self.login("patio")
+        self.assertEqual(
+            self.client.post(f"/api/ventas/{vta_id}/anular/", {"motivo": "Sin permiso"}, format="json").status_code,
+            403,
+        )
+
+        self.login("administrativo")
+        r_anu = self.client.post(
+            f"/api/ventas/{vta_id}/anular/",
+            {"motivo": "Cancelación del cliente"},
+            format="json",
+        )
+        self.assertEqual(r_anu.status_code, 200, r_anu.content)
+        self.assertEqual(r_anu.data["estado"], "ANULADO")
+        self.assertEqual(Paquete.objects.get(pk=pkt_id).estado, Paquete.Estado.ELABORADO)

@@ -41,8 +41,26 @@
             {% if recepcion.requiere_revision %}<span class="badge badge-revision ms-1">Sobre tolerancia</span>{% endif %}</dd>
           <dt class="col-5">Recibida por</dt><dd class="col-7">{{ recepcion.recibida_por.nombre_visible }}</dd>
           <dt class="col-5">Fecha</dt><dd class="col-7">{{ recepcion.fecha|date:"d-m-Y H:i" }}</dd>
+          {% if recepcion.resolucion %}
+          <dt class="col-5">Resolución gerencial</dt>
+          <dd class="col-7">{{ recepcion.resolucion }}{% if recepcion.revisada_por %} · {{ recepcion.revisada_por.nombre_visible }} ({{ recepcion.fecha_revision|date:"d-m-Y H:i" }}){% endif %}</dd>
+          {% endif %}
           {% if recepcion.observacion %}<dt class="col-5">Observación</dt><dd class="col-7 mb-0">{{ recepcion.observacion }}</dd>{% endif %}
         </dl>
+        {% if puede_resolver_discrepancia %}
+        <hr class="my-3">
+        <form method="post" action="{% url 'guia_resolver_discrepancia' guia.pk %}">
+          {% csrf_token %}
+          <div class="mb-2">
+            <label class="form-label fw-semibold small" for="obs_discrepancia">Observación gerencial (obligatoria si rechaza)</label>
+            <textarea class="form-control form-control-sm" id="obs_discrepancia" name="observacion" rows="2" placeholder="Ej.: Merma justificada por humedad / humedad en tránsito"></textarea>
+          </div>
+          <div class="d-flex gap-2">
+            <button class="btn btn-sm btn-primary flex-grow-1" name="decision" value="aceptar">Aceptar discrepancia</button>
+            <button class="btn btn-sm btn-outline-danger" name="decision" value="rechazar">Rechazar / observar</button>
+          </div>
+        </form>
+        {% endif %}
         {% else %}
         <p class="text-secondary mb-0">El camión aún no llega al patio. La guía está en tránsito.</p>
         {% endif %}

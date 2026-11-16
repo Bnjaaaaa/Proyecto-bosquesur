@@ -98,6 +98,15 @@ class Recepcion(models.Model):
     observacion = models.TextField("observación", blank=True)
     recibida_por = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="recepciones")
     fecha = models.DateTimeField(auto_now_add=True, db_index=True)
+    revisada_por = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="recepciones_revisadas",
+    )
+    fecha_revision = models.DateTimeField(null=True, blank=True)
+    resolucion = models.TextField("resolución gerencial", blank=True, default="")
 
     class Meta:
         ordering = ["-fecha", "-id"]
@@ -206,6 +215,7 @@ class HistorialPaquete(models.Model):
         PROCESO = "PROCESO", "Aplicación de proceso posterior"
         MOVIMIENTO = "MOVIMIENTO", "Cambio de ubicación en bodega"
         RESERVA = "RESERVA", "Asignación a pedido de venta"
+        LIBERACION = "LIBERACION", "Liberación por anulación de venta"
         DESPACHO = "DESPACHO", "Despacho comercial a cliente"
 
     paquete = models.ForeignKey(Paquete, on_delete=models.PROTECT, related_name="historial")

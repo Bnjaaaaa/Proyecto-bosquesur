@@ -27,6 +27,7 @@ from operaciones.models import (
 
 from .permisos import requiere
 from .serializers import (
+    AnularVentaEntradaSerializer,
     AprobarCompraEntradaSerializer,
     ClienteSerializer,
     DespacharVentaEntradaSerializer,
@@ -46,6 +47,7 @@ from .serializers import (
     RecepcionarCompraEntradaSerializer,
     RecepcionEntradaSerializer,
     RegistroAuditoriaSerializer,
+    ResolverDiscrepanciaEntradaSerializer,
     TokenConRolSerializer,
     UbicacionBodegaSerializer,
     UsuarioSerializer,
@@ -117,7 +119,11 @@ class GuiaDespachoViewSet(
     serializer_class = GuiaDespachoSerializer
 
     def get_permissions(self):
-        permiso = {"create": "emitir_guia", "recepcionar": "recepcionar"}.get(self.action, "ver_guias")
+        permiso = {
+            "create": "emitir_guia",
+            "recepcionar": "recepcionar",
+            "resolver_discrepancia": "resolver_discrepancia",
+        }.get(self.action, "ver_guias")
         return [IsAuthenticated(), requiere(permiso)()]
 
     def get_queryset(self):
@@ -157,6 +163,26 @@ class GuiaDespachoViewSet(
         )
         guia.refresh_from_db()
         return Response(self.get_serializer(guia).data, status=status.HTTP_201_CREATED)
+
+    @action(detail=True, methods=["post"], url_path="resolver-discrepancia")
+    def resolver_discrepancia(self, request, pk=None):
+        guia = self.get_object()
+        recepcion = getattr(guia, "recepcion", None)
+        if recepcion is None:
+            raise ValidationError({"detalle": "La guía aún no ha sido recepcionada."})
+        entrada = ResolverDiscrepanciaEntradaSerializer(data=request.data)
+        entrada.is_valid(raise_exception=True)
+        d = entrada.validated_data
+        _ejecutar(
+            request,
+            f"Resolución discrepancia {guia.numero} (API)",
+            servicios.resolver_discrepancia,
+            recepcion_id=recepcion.pk,
+            aceptar=d["aceptar"],
+            observacion=d.get("observacion", ""),
+        )
+        guia.refresh_from_db()
+        return Response(self.get_serializer(guia).data)
 
 
 class OrdenProduccionViewSet(
@@ -433,6 +459,7 @@ class PedidoVentaViewSet(
         permiso = {
             "create": "gestionar_ventas",
             "despachar": "despachar_venta",
+            "anular": "gestionar_ventas",
         }.get(self.action, "ver_ventas")
         return [IsAuthenticated(), requiere(permiso)()]
 
@@ -474,6 +501,21 @@ class PedidoVentaViewSet(
             patente_camion=d["patente_camion"],
             conductor=d["conductor"],
             observacion=d.get("observacion", ""),
+        )
+        return Response(self.get_serializer(pedido).data)
+
+    @action(detail=True, methods=["post"])
+    def anular(self, request, pk=None):
+        pedido = self.get_object()
+        entrada = AnularVentaEntradaSerializer(data=request.data)
+        entrada.is_valid(raise_exception=True)
+        d = entrada.validated_data
+        pedido = _ejecutar(
+            request,
+            f"Anulación venta {pedido.numero} (API)",
+            servicios.anular_pedido_venta,
+            pedido_id=pedido.pk,
+            motivo=d.get("motivo", ""),
         )
         return Response(self.get_serializer(pedido).data)
 
