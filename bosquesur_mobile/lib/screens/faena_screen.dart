@@ -139,14 +139,16 @@ class _FaenaScreenState extends State<FaenaScreen> {
                   const Text('1. Registrar Lote de Cosecha', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 10),
                   DropdownButtonFormField<int>(
-                    value: _faenaId,
+                    key: ValueKey('faena_$_faenaId'),
+                    initialValue: _faenaId,
                     decoration: const InputDecoration(labelText: 'Faena / Predio', border: OutlineInputBorder()),
                     items: _faenas.map((f) => DropdownMenuItem(value: f['id'] as int, child: Text(f['nombre'] as String))).toList(),
                     onChanged: (v) => setState(() => _faenaId = v),
                   ),
                   const SizedBox(height: 10),
                   DropdownButtonFormField<int>(
-                    value: _productoId,
+                    key: ValueKey('prod_$_productoId'),
+                    initialValue: _productoId,
                     decoration: const InputDecoration(labelText: 'Rollizo', border: OutlineInputBorder()),
                     items: _rollizos.map((p) => DropdownMenuItem(value: p['id'] as int, child: Text(p['nombre'] as String))).toList(),
                     onChanged: (v) => setState(() => _productoId = v),
@@ -186,7 +188,8 @@ class _FaenaScreenState extends State<FaenaScreen> {
                   const Text('2. Emitir Guía de Despacho Forestal', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 10),
                   DropdownButtonFormField<int?>(
-                    value: _loteId,
+                    key: ValueKey('lote_$_loteId'),
+                    initialValue: _loteId,
                     decoration: const InputDecoration(labelText: 'Lote asociado (opcional)', border: OutlineInputBorder()),
                     items: [
                       const DropdownMenuItem<int?>(value: null, child: Text('Sin lote específico')),
@@ -199,7 +202,8 @@ class _FaenaScreenState extends State<FaenaScreen> {
                   ),
                   const SizedBox(height: 10),
                   DropdownButtonFormField<int>(
-                    value: _patioId,
+                    key: ValueKey('patio_$_patioId'),
+                    initialValue: _patioId,
                     decoration: const InputDecoration(labelText: 'Patio de destino', border: OutlineInputBorder()),
                     items: _patios.map((p) => DropdownMenuItem(value: p['id'] as int, child: Text(p['nombre'] as String))).toList(),
                     onChanged: (v) => setState(() => _patioId = v),

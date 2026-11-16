@@ -10,7 +10,7 @@ echo.
 
 where python >nul 2>nul
 if errorlevel 1 (
-  echo  [ERROR] No se encontro Python. Instale Python 3.12+ desde python.org
+  echo  [ERROR] No se encontro Python. Instale Python 3.10 - 3.13 ^(verificado en 3.13^) desde python.org
   echo          y marque "Add python.exe to PATH" durante la instalacion.
   pause
   exit /b 1

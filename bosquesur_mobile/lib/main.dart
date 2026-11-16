@@ -83,7 +83,7 @@ class _HomeShellState extends State<HomeShell> {
     final nombre = '${usuario['first_name'] ?? ''} ${usuario['last_name'] ?? ''}'.trim();
     final rol = usuario['rol'] ?? '';
 
-    final pantallas = const [
+    const pantallas = [
       FaenaScreen(),
       PatioRecepcionScreen(),
       BodegaQrScreen(),

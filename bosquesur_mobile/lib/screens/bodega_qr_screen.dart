@@ -173,7 +173,8 @@ class _BodegaQrScreenState extends State<BodegaQrScreen> {
                   const Text('Procesar o Trasladar Paquete', style: TextStyle(fontWeight: FontWeight.bold)),
                   const SizedBox(height: 10),
                   DropdownButtonFormField<String>(
-                    value: _proceso,
+                    key: ValueKey('proceso_$_proceso'),
+                    initialValue: _proceso,
                     decoration: const InputDecoration(labelText: 'Proceso posterior', border: OutlineInputBorder()),
                     items: const [
                       DropdownMenuItem(value: 'SECADO', child: Text('Secado en cámara')),
@@ -185,7 +186,8 @@ class _BodegaQrScreenState extends State<BodegaQrScreen> {
                   ),
                   const SizedBox(height: 10),
                   DropdownButtonFormField<int>(
-                    value: _ubicacionDestinoId,
+                    key: ValueKey('ub_$_ubicacionDestinoId'),
+                    initialValue: _ubicacionDestinoId,
                     decoration: const InputDecoration(labelText: 'Ubicación de destino', border: OutlineInputBorder()),
                     items: _ubicaciones
                         .map((u) => DropdownMenuItem<int>(
